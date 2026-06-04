@@ -443,7 +443,7 @@
       <div class="left"><span class="mi-icon">✏️</span><span class="mi-label">Edit Profile</span></div>
       <span class="arrow">›</span>
     </div>
-    <div class="profile-menu-item" onclick="showToast('Favourites coming soon')">
+    <div class="profile-menu-item" onclick="goScreen('saved')">
       <div class="left"><span class="mi-icon">❤️</span><span class="mi-label">Saved Restaurants</span></div>
       <span class="arrow">›</span>
     </div>
@@ -511,6 +511,39 @@
   <!-- ══════════════════════════════
        BOTTOM NAV
   ══════════════════════════════ -->
+  <!-- ══════════════════════════════
+       AUTH PROMPT (save without account)
+  ══════════════════════════════ -->
+  <div id="auth-prompt-modal">
+    <div class="save-sheet">
+      <div class="sheet-handle"></div>
+      <div style="text-align:center; margin-bottom:24px">
+        <div style="font-size:48px; margin-bottom:14px">❤️</div>
+        <h2 style="font-size:20px; margin-bottom:8px">Save your favourites</h2>
+        <p style="font-size:14px; color:var(--gray); line-height:1.5">
+          Create a free account or sign in to save restaurants and access them any time.
+        </p>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px">
+        <button class="btn-primary"   onclick="authPromptAction('signup')">Create Account</button>
+        <button class="btn-secondary" onclick="authPromptAction('signin')">Sign In</button>
+        <button class="btn-ghost"     onclick="closeAuthPrompt()">Not now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       SAVED RESTAURANTS
+  ══════════════════════════════ -->
+  <div id="screen-saved" class="screen">
+    <div class="topbar">
+      <button class="topbar-back" onclick="goBack('profile')">&#8592;</button>
+      <div class="logo">Din<span>ery</span></div>
+      <div style="width:36px"></div>
+    </div>
+    <div class="scroll-content" id="savedList"></div>
+  </div>
+
   <nav class="bottomnav" id="bottomnav">
     <div class="nav-logo">Din<span>ery</span></div>
     <button class="active" id="nav-home" onclick="goScreen('home')">

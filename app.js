@@ -117,24 +117,26 @@ const AUTH_SCREENS    = ['signup','signin'];
 const BOOKING_SCREENS = ['book-datetime','book-seating','book-guests','book-details','confirmed'];
 
 let state = {
-  currentScreen : 'home',
-  prevScreen    : null,
+  currentScreen      : 'home',
+  prevScreen         : null,
   selectedRestaurant : null,
-  selectedDate  : null,
-  selectedTime  : null,
-  selectedSeating: null,
-  guestCount    : 2,
-  favourites    : JSON.parse(localStorage.getItem('dn_favs')  || '[]'),
-  reservations  : JSON.parse(localStorage.getItem('dn_reservations') || '[]'),
-  searchFilter  : 'All',
-  user          : JSON.parse(localStorage.getItem('dn_user')  || 'null'),
+  selectedDate       : null,
+  selectedTime       : null,
+  selectedSeating    : null,
+  guestCount         : 2,
+  favourites         : [],          // loaded from user.savedRestaurants on login
+  reservations       : JSON.parse(localStorage.getItem('dn_reservations') || '[]'),
+  searchFilter       : 'All',
+  user               : JSON.parse(localStorage.getItem('dn_user') || 'null'),
+  pendingSaveId      : null,        // restaurant id queued to save after auth
 };
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  if (state.user) state.favourites = state.user.savedRestaurants || [];
   renderSearchResults();
   renderHome();
-  goScreen('home');   // always start on home — auth happens post-booking
+  goScreen('home');
 });
 
 // ── Navigation ────────────────────────────────────────────────────────────────
@@ -144,12 +146,12 @@ function goScreen(id) {
   state.prevScreen    = state.currentScreen;
   state.currentScreen = id;
 
-  // bottom nav highlight
+  // 'saved' is a sub-screen of profile — keep profile tab highlighted
   document.querySelectorAll('.bottomnav button').forEach(b => b.classList.remove('active'));
-  const navBtn = document.getElementById('nav-' + id);
+  const navBtn = document.getElementById('nav-' + (id === 'saved' ? 'profile' : id));
   if (navBtn) navBtn.classList.add('active');
 
-  // hide nav for auth + booking screens (on desktop it stays as sidebar)
+  // hide bottom nav for auth + booking screens (on desktop it stays as sidebar)
   const hideNav = [...AUTH_SCREENS, ...BOOKING_SCREENS, 'edit-profile'].includes(id);
   if (window.innerWidth < 1200) {
     document.getElementById('bottomnav').style.display = hideNav ? 'none' : 'flex';
@@ -159,6 +161,7 @@ function goScreen(id) {
   if (id === 'home')         renderHome();
   if (id === 'reservations') renderReservations();
   if (id === 'profile')      renderProfile();
+  if (id === 'saved')        renderSaved();
   if (id === 'book-details') populateSummary();
   if (id === 'edit-profile') populateEditForm();
 }
@@ -180,13 +183,12 @@ function doSignUp() {
   const password = document.getElementById('su-password').value;
 
   let ok = true;
-  if (!name)                        { showErr('err-su-name',     'Please enter your name');                    ok = false; }
-  if (!phone)                       { showErr('err-su-phone',    'Please enter your phone number');            ok = false; }
-  if (!email || !email.includes('@')){ showErr('err-su-email',   'Please enter a valid email');                ok = false; }
-  if (password.length < 6)          { showErr('err-su-password', 'Password must be at least 6 characters');   ok = false; }
+  if (!name)                         { showErr('err-su-name',     'Please enter your name');                  ok = false; }
+  if (!phone)                        { showErr('err-su-phone',    'Please enter your phone number');          ok = false; }
+  if (!email || !email.includes('@')){ showErr('err-su-email',    'Please enter a valid email');              ok = false; }
+  if (password.length < 6)           { showErr('err-su-password', 'Password must be at least 6 characters'); ok = false; }
   if (!ok) return;
 
-  // Check against all registered accounts
   const users = JSON.parse(localStorage.getItem('dn_users') || '[]');
   const exists = users.find(u => u.email.toLowerCase() === email.toLowerCase());
   if (exists) {
@@ -194,11 +196,19 @@ function doSignUp() {
     return;
   }
 
-  const user = { name, phone, email, password };
+  const user = { name, phone, email, password, savedRestaurants: [] };
   users.push(user);
   localStorage.setItem('dn_users', JSON.stringify(users));
   localStorage.setItem('dn_user',  JSON.stringify(user));
-  state.user = user;
+  state.user      = user;
+  state.favourites = [];
+
+  // Auto-save the restaurant the guest was trying to save before signing up
+  if (state.pendingSaveId !== null) {
+    state.favourites.push(state.pendingSaveId);
+    state.pendingSaveId = null;
+    persistFavourites();
+  }
 
   showToast('Account created! Welcome, ' + name.split(' ')[0] + ' 👋');
   goScreen(state.prevScreen === 'confirmed' ? 'confirmed' : 'home');
@@ -216,16 +226,28 @@ function doSignIn() {
     return;
   }
 
-  state.user = found;
+  state.user       = found;
+  state.favourites = found.savedRestaurants || [];
   localStorage.setItem('dn_user', JSON.stringify(found));
+
+  // Auto-save any restaurant queued before sign-in
+  if (state.pendingSaveId !== null) {
+    if (!state.favourites.includes(state.pendingSaveId)) {
+      state.favourites.push(state.pendingSaveId);
+      persistFavourites();
+    }
+    state.pendingSaveId = null;
+  }
+
   showToast('Welcome back, ' + found.name.split(' ')[0] + ' 👋');
   goScreen(state.prevScreen === 'profile' ? 'profile' : 'home');
 }
 
 function doSignOut() {
   if (!confirm('Sign out of Dinery?')) return;
-  state.user = null;
-  localStorage.removeItem('dn_user'); // clear session only — accounts stay saved
+  state.user       = null;
+  state.favourites = [];
+  localStorage.removeItem('dn_user');
   goScreen('home');
   showToast('Signed out');
 }
@@ -238,7 +260,6 @@ function saveProfile() {
 
   if (!name || !phone || !email) { showToast('Please fill all required fields'); return; }
 
-  // Make sure the new email isn't taken by a different account
   const users = JSON.parse(localStorage.getItem('dn_users') || '[]');
   const conflict = users.find(u =>
     u.email.toLowerCase() === email.toLowerCase() &&
@@ -249,10 +270,10 @@ function saveProfile() {
   const updated = {
     ...state.user,
     name, phone, email,
+    savedRestaurants: state.user.savedRestaurants || [],
     ...(password.length >= 6 ? { password } : {}),
   };
 
-  // Update in the users array
   const idx = users.findIndex(u => u.email.toLowerCase() === state.user.email.toLowerCase());
   if (idx !== -1) users[idx] = updated; else users.push(updated);
   localStorage.setItem('dn_users', JSON.stringify(users));
@@ -264,9 +285,9 @@ function saveProfile() {
 
 function populateEditForm() {
   if (!state.user) return;
-  document.getElementById('ep-name').value    = state.user.name  || '';
-  document.getElementById('ep-phone').value   = state.user.phone || '';
-  document.getElementById('ep-email').value   = state.user.email || '';
+  document.getElementById('ep-name').value     = state.user.name  || '';
+  document.getElementById('ep-phone').value    = state.user.phone || '';
+  document.getElementById('ep-email').value    = state.user.email || '';
   document.getElementById('ep-password').value = '';
 }
 
@@ -294,8 +315,7 @@ function renderProfile() {
 
 // ── Home ─────────────────────────────────────────────────────────────────────
 function renderHome() {
-  // personalised greeting
-  const hour = new Date().getHours();
+  const hour   = new Date().getHours();
   const period = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   document.getElementById('homeGreetSub').textContent = period;
   if (state.user) {
@@ -313,9 +333,14 @@ function renderRecommended() {
   const row = document.getElementById('recommendedRow');
   if (!row) return;
   row.innerHTML = [1,2,3].map(i => {
-    const r = RESTAURANTS[i];
+    const r     = RESTAURANTS[i];
+    const saved = state.favourites.includes(r.id);
     return `<div class="rest-card" onclick="openRestaurant(${r.id})">
-      <img src="${r.img}" alt="${r.name}" loading="lazy">
+      <div class="card-img-wrap">
+        <img src="${r.img}" alt="${r.name}" loading="lazy">
+        <button class="card-save-btn${saved ? ' saved' : ''}"
+          onclick="event.stopPropagation();toggleFav(${r.id})" title="Save restaurant">&#9829;</button>
+      </div>
       <div class="info">
         <h3>${r.name}</h3>
         <div class="sub">${r.cuisine}</div>
@@ -329,7 +354,8 @@ function renderNearby() {
   const list = document.getElementById('nearbyList');
   if (!list) return;
   list.innerHTML = [4,3,2].map(i => {
-    const r = RESTAURANTS[i];
+    const r     = RESTAURANTS[i];
+    const saved = state.favourites.includes(r.id);
     return `<div class="list-card" onclick="openRestaurant(${r.id})">
       <img src="${r.img}" alt="${r.name}" loading="lazy">
       <div class="info">
@@ -341,6 +367,8 @@ function renderNearby() {
           <span class="badge-open">Open</span>
         </div>
       </div>
+      <button class="list-save-btn${saved ? ' saved' : ''}"
+        onclick="event.stopPropagation();toggleFav(${r.id})" title="Save restaurant">&#9829;</button>
     </div>`;
   }).join('');
 }
@@ -363,7 +391,7 @@ function filterSearchCuisine(el, cuisine) {
 function renderSearchResults(q = '', cuisine = 'All') {
   const container = document.getElementById('searchResults');
   if (!container) return;
-  const query = q.toLowerCase();
+  const query   = q.toLowerCase();
   const results = RESTAURANTS.filter(r => {
     const mc = cuisine === 'All' || r.cuisine === cuisine;
     const mq = !query || r.name.toLowerCase().includes(query) || r.cuisine.toLowerCase().includes(query);
@@ -373,8 +401,9 @@ function renderSearchResults(q = '', cuisine = 'All') {
     container.innerHTML = `<div class="empty-state"><div class="icon">🍽</div><h2>No results</h2><p>Try a different search or filter.</p></div>`;
     return;
   }
-  container.innerHTML = results.map(r =>
-    `<div class="list-card" onclick="openRestaurant(${r.id})">
+  container.innerHTML = results.map(r => {
+    const saved = state.favourites.includes(r.id);
+    return `<div class="list-card" onclick="openRestaurant(${r.id})">
       <img src="${r.img}" alt="${r.name}" loading="lazy">
       <div class="info">
         <h3>${r.name}</h3>
@@ -385,8 +414,10 @@ function renderSearchResults(q = '', cuisine = 'All') {
           <span class="badge-open">Open</span>
         </div>
       </div>
-    </div>`
-  ).join('');
+      <button class="list-save-btn${saved ? ' saved' : ''}"
+        onclick="event.stopPropagation();toggleFav(${r.id})" title="Save restaurant">&#9829;</button>
+    </div>`;
+  }).join('');
 }
 
 // ── Restaurant Detail ─────────────────────────────────────────────────────────
@@ -441,22 +472,105 @@ function switchTab(el, tab) {
   document.getElementById('tab-reviews').style.display = tab === 'reviews' ? '' : 'none';
 }
 
-function toggleFav() {
-  if (!state.selectedRestaurant) return;
-  const id  = state.selectedRestaurant.id;
-  const idx = state.favourites.indexOf(id);
-  if (idx === -1) { state.favourites.push(id); showToast('Added to favourites ❤️'); }
-  else            { state.favourites.splice(idx,1); showToast('Removed from favourites'); }
-  localStorage.setItem('dn_favs', JSON.stringify(state.favourites));
+// ── Favourites ────────────────────────────────────────────────────────────────
+function toggleFav(id) {
+  const rId = (id !== undefined) ? id : state.selectedRestaurant?.id;
+  if (rId === undefined || rId === null) return;
+
+  if (!state.user) {
+    state.pendingSaveId = rId;
+    document.getElementById('auth-prompt-modal').classList.add('open');
+    return;
+  }
+
+  const idx = state.favourites.indexOf(rId);
+  if (idx === -1) { state.favourites.push(rId);    showToast('Saved to favourites ❤️'); }
+  else            { state.favourites.splice(idx,1); showToast('Removed from saved'); }
+
+  persistFavourites();
   updateFavBtn();
+  refreshCards();
+}
+
+function persistFavourites() {
+  if (!state.user) return;
+  state.user.savedRestaurants = [...state.favourites];
+  localStorage.setItem('dn_user', JSON.stringify(state.user));
+  const users = JSON.parse(localStorage.getItem('dn_users') || '[]');
+  const idx   = users.findIndex(u => u.email.toLowerCase() === state.user.email.toLowerCase());
+  if (idx !== -1) {
+    users[idx].savedRestaurants = [...state.favourites];
+    localStorage.setItem('dn_users', JSON.stringify(users));
+  }
 }
 
 function updateFavBtn() {
   const btn = document.getElementById('favBtn');
   if (!btn || !state.selectedRestaurant) return;
-  const isFav = state.favourites.includes(state.selectedRestaurant.id);
-  btn.textContent  = isFav ? '♥' : '♡';
-  btn.style.color  = isFav ? '#e05555' : 'white';
+  const isFav     = state.favourites.includes(state.selectedRestaurant.id);
+  btn.textContent = isFav ? '♥' : '♡';
+  btn.style.color = isFav ? '#e05555' : 'white';
+}
+
+function refreshCards() {
+  if (state.currentScreen === 'home') { renderRecommended(); renderNearby(); }
+  if (state.currentScreen === 'search') renderSearchResults(document.getElementById('searchInput')?.value || '', state.searchFilter);
+  if (state.currentScreen === 'saved') renderSaved();
+}
+
+// ── Auth prompt (save without account) ───────────────────────────────────────
+function closeAuthPrompt() {
+  document.getElementById('auth-prompt-modal').classList.remove('open');
+}
+function authPromptAction(screen) {
+  closeAuthPrompt();
+  goScreen(screen);
+}
+
+// ── Saved restaurants screen ──────────────────────────────────────────────────
+function renderSaved() {
+  const el = document.getElementById('savedList');
+  if (!el) return;
+
+  if (!state.user) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="icon">❤️</div>
+      <h2>Sign in to view saved restaurants</h2>
+      <p>Create a free account to save your favourite restaurants and access them any time.</p>
+      <button class="btn-primary" style="max-width:200px;margin:0 auto" onclick="goScreen('signin')">Sign In</button>
+    </div>`;
+    return;
+  }
+
+  const saved = RESTAURANTS.filter(r => state.favourites.includes(r.id));
+  if (!saved.length) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="icon">❤️</div>
+      <h2>No saved restaurants yet</h2>
+      <p>Tap ♥ on any restaurant to save it here.</p>
+      <button class="btn-primary" style="max-width:200px;margin:0 auto" onclick="goScreen('home')">Explore restaurants</button>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML =
+    '<div style="padding:20px 20px 8px"><div class="section-label">Saved Restaurants</div></div>' +
+    saved.map(r => `
+      <div class="list-card" onclick="openRestaurant(${r.id})">
+        <img src="${r.img}" alt="${r.name}" loading="lazy">
+        <div class="info">
+          <h3>${r.name}</h3>
+          <div class="sub">${r.cuisine} · ${r.dist}</div>
+          <div class="row-meta">
+            <span class="stars">★ ${r.rating}</span>
+            <span class="price">${r.price}</span>
+            <span class="badge-open">Open</span>
+          </div>
+        </div>
+        <button class="list-save-btn saved"
+          onclick="event.stopPropagation();toggleFav(${r.id})" title="Remove from saved">&#9829;</button>
+      </div>`
+    ).join('') + '<div style="height:20px"></div>';
 }
 
 // ── Booking Flow ──────────────────────────────────────────────────────────────
@@ -467,7 +581,7 @@ function startBooking() {
   state.selectedSeating = null;
   state.guestCount      = 2;
   document.getElementById('bookingRestName').textContent = state.selectedRestaurant.name;
-  document.getElementById('guestCount').textContent = '2';
+  document.getElementById('guestCount').textContent      = '2';
   buildDateGrid();
   buildTimeGrid();
   document.getElementById('btnDateTime').disabled = true;
@@ -546,7 +660,6 @@ function populateSummary() {
   document.getElementById('sumSeating').textContent  = SEATING_LABELS[state.selectedSeating] || '';
   document.getElementById('sumGuests').textContent   = `${state.guestCount} guest${state.guestCount > 1 ? 's' : ''}`;
 
-  // Auto-fill from profile
   const u = state.user;
   if (u) {
     document.getElementById('fieldName').value  = u.name  || '';
@@ -586,7 +699,6 @@ function confirmBooking() {
   state.reservations.unshift(booking);
   localStorage.setItem('dn_reservations', JSON.stringify(state.reservations));
 
-  // Keep last entered details so sign-up can pre-fill them
   state.lastBookingName  = name;
   state.lastBookingPhone = phone;
   state.lastBookingEmail = document.getElementById('fieldEmail').value.trim();
@@ -600,7 +712,6 @@ function confirmBooking() {
   document.getElementById('confRef').textContent      = ref;
   goScreen('confirmed');
 
-  // Offer to save credentials if not signed in and user hasn't opted out
   if (!state.user && localStorage.getItem('dn_noask') !== 'true') {
     setTimeout(showSaveModal, 700);
   }
@@ -635,7 +746,6 @@ function renderReservations() {
     ).join('') + '<div style="height:20px"></div>';
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 // ── Save-credentials modal ────────────────────────────────────────────────────
 function showSaveModal() {
   document.getElementById('save-modal').classList.add('open');
@@ -645,7 +755,6 @@ function hideSaveModal() {
 }
 function savePromptYes() {
   hideSaveModal();
-  // Pre-fill sign-up form with the details just used in the booking
   document.getElementById('su-name').value  = state.lastBookingName  || '';
   document.getElementById('su-phone').value = state.lastBookingPhone || '';
   document.getElementById('su-email').value = state.lastBookingEmail || '';
@@ -653,18 +762,16 @@ function savePromptYes() {
   ['err-su-name','err-su-phone','err-su-email','err-su-password'].forEach(clearErr);
   goScreen('signup');
 }
-function savePromptLater() {
-  hideSaveModal();
-  // No flag set — will ask again after next booking
-}
+function savePromptLater() { hideSaveModal(); }
 function savePromptNo() {
   localStorage.setItem('dn_noask', 'true');
   hideSaveModal();
 }
 
+// ── Utilities ─────────────────────────────────────────────────────────────────
 function togglePw(id, btn) {
-  const inp = document.getElementById(id);
-  inp.type = inp.type === 'password' ? 'text' : 'password';
+  const inp  = document.getElementById(id);
+  inp.type   = inp.type === 'password' ? 'text' : 'password';
   btn.textContent = inp.type === 'password' ? '👁' : '🙈';
 }
 
