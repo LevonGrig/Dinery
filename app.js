@@ -149,9 +149,11 @@ function goScreen(id) {
   const navBtn = document.getElementById('nav-' + id);
   if (navBtn) navBtn.classList.add('active');
 
-  // hide nav for auth + booking screens
+  // hide nav for auth + booking screens (on desktop it stays as sidebar)
   const hideNav = [...AUTH_SCREENS, ...BOOKING_SCREENS, 'edit-profile'].includes(id);
-  document.getElementById('bottomnav').style.display = hideNav ? 'none' : 'flex';
+  if (window.innerWidth < 1200) {
+    document.getElementById('bottomnav').style.display = hideNav ? 'none' : 'flex';
+  }
 
   // per-screen init
   if (id === 'home')         renderHome();

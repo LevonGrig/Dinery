@@ -504,6 +504,144 @@
     }
     .screen.active > * { animation: fadeUp 0.3s ease both; }
 
-    @media (min-width: 768px) {
-      #app { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+    /* ── Nav logo (desktop only) ── */
+    .nav-logo { display: none; }
+
+    /* ════════════════════════════════════════
+       TABLET  768 – 1199px
+    ════════════════════════════════════════ */
+    @media (min-width: 768px) and (max-width: 1199px) {
+      #app {
+        max-width: 768px;
+        border-left: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+      }
+      .card-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        overflow: visible;
+        gap: 14px;
+      }
+      .rest-card { width: auto; flex-shrink: unset; }
+      #nearbyList, #searchResults {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        padding: 0 20px;
+        column-gap: 14px;
+      }
+      #nearbyList .list-card,
+      #searchResults .list-card { margin: 0 0 14px 0; }
+      #nearbyList .empty-state,
+      #searchResults .empty-state { grid-column: 1 / -1; }
+      .hero-card { height: 280px; }
+    }
+
+    /* ════════════════════════════════════════
+       DESKTOP  1200px+
+    ════════════════════════════════════════ */
+    @media (min-width: 1200px) {
+
+      /* ── Sidebar nav ── */
+      .bottomnav {
+        left: 0; top: 0;
+        width: 240px; height: 100vh;
+        flex-direction: column;
+        transform: none;
+        border-top: none;
+        border-right: 1px solid var(--border);
+        padding: 36px 0 24px;
+        justify-content: flex-start;
+        align-items: stretch;
+        display: flex !important; /* always visible as sidebar */
+      }
+      .nav-logo {
+        display: block;
+        font-size: 22px; font-weight: 700; letter-spacing: 1px;
+        color: var(--gold); padding: 0 24px 28px;
+        border-bottom: 1px solid var(--border); margin-bottom: 12px;
+      }
+      .nav-logo span { color: var(--black); }
+      .bottomnav button {
+        flex: none;
+        flex-direction: row; justify-content: flex-start;
+        gap: 12px; padding: 13px 24px;
+        font-size: 14px; font-weight: 500; width: 100%;
+        border-left: 3px solid transparent;
+        border-radius: 0;
+      }
+      .bottomnav button.active {
+        border-left-color: var(--gold);
+        background: rgba(184,112,64,0.08);
+      }
+      .bottomnav button svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+      /* ── App offset from sidebar ── */
+      #app {
+        margin: 0 0 0 240px;
+        max-width: none;
+        border: none;
+        width: calc(100vw - 240px);
+      }
+
+      /* ── Screens ── */
+      .screen { padding-bottom: 0; }
+      .cta-wrap {
+        bottom: 0;
+        background: linear-gradient(to top, #FDF8F0 80%, transparent);
+      }
+
+      /* ── Wider padding ── */
+      .topbar        { padding: 32px 40px 16px; }
+      .greeting      { padding: 0 40px 24px; }
+      .search-wrap   { padding: 0 40px 20px; }
+      .filter-row    { padding: 0 40px 20px; }
+      .section-header { padding: 0 40px; }
+      .hero-card     { margin: 0 40px 28px; height: 360px; }
+      .detail-hero   { height: 440px; }
+
+      /* ── Card grids ── */
+      .card-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        overflow: visible;
+        gap: 16px;
+        padding: 0 40px 8px;
+      }
+      .rest-card { width: auto; flex-shrink: unset; }
+      .rest-card img { height: 130px; }
+
+      #nearbyList, #searchResults {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        padding: 0 40px;
+        column-gap: 16px;
+      }
+      #nearbyList .list-card,
+      #searchResults .list-card { margin: 0 0 16px 0; }
+      #nearbyList .empty-state,
+      #searchResults .empty-state { grid-column: 1 / -1; }
+
+      /* ── Reservations grid ── */
+      #reservationsList {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        padding: 0 40px;
+        column-gap: 16px;
+      }
+      #reservationsList > div:first-child { grid-column: 1 / -1; }
+      #reservationsList .list-card { margin: 0 0 16px 0; }
+      #reservationsList .empty-state { grid-column: 1 / -1; }
+
+      /* ── Narrow centered flows (booking, auth) ── */
+      #screen-book-datetime,
+      #screen-book-seating,
+      #screen-book-guests,
+      #screen-book-details,
+      #screen-confirmed,
+      #screen-signup,
+      #screen-signin,
+      #screen-edit-profile { max-width: 640px; margin: 0 auto; width: 100%; }
+
+      /* ── Toast ── */
+      #toast { bottom: 24px; }
     }
