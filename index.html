@@ -1,4 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Dinery — Fine Dining Reservations</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
 
+  <!-- ══════════════════════════════
+       SAVE CREDENTIALS MODAL
+  ══════════════════════════════ -->
+  <div id="save-modal">
     <div class="save-sheet">
       <div class="sheet-handle"></div>
       <div style="text-align:center; margin-bottom:24px">
@@ -25,7 +39,6 @@
         <button class="topbar-back" style="margin-bottom:24px; padding:0" onclick="goBack('profile')">&#8592;</button>
         <div class="auth-title">Create Account</div>
         <div class="auth-sub">Save your details for faster bookings in future</div>
-        <div class="auth-sub">Save your details and favourite restaurants for future bookings</div>
 
         <div class="form-group">
           <label>Full Name</label>
@@ -51,6 +64,341 @@
           <div class="field-error" id="err-su-password">Password must be at least 6 characters</div>
         </div>
 
+        <button class="btn-primary" onclick="doSignUp()" style="margin-top:8px">Create Account</button>
+
+        <div class="auth-link">
+          Already have an account? <button onclick="goScreen('signin')">Sign In</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       SIGN IN
+  ══════════════════════════════ -->
+  <div id="screen-signin" class="screen" style="padding-bottom:0">
+    <div class="auth-screen">
+      <button class="topbar-back" style="margin-bottom:24px; padding:0" onclick="goBack('profile')">&#8592;</button>
+      <div class="auth-title">Welcome back</div>
+      <div class="auth-sub">Sign in to pick up right where you left off</div>
+
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="si-email" placeholder="your@email.com" oninput="clearErr('err-si')">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="si-password" placeholder="Your password" oninput="clearErr('err-si')">
+          <button class="pw-toggle" onclick="togglePw('si-password',this)">👁</button>
+        </div>
+        <div class="field-error" id="err-si">Email or password is incorrect</div>
+      </div>
+
+      <button class="btn-primary" onclick="doSignIn()" style="margin-top:8px">Sign In</button>
+
+      <div class="auth-link">
+        Don't have an account? <button onclick="goScreen('signup')">Sign Up</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       HOME
+  ══════════════════════════════ -->
+  <div id="screen-home" class="screen">
+    <div class="topbar">
+      <div class="logo">Din<span>ery</span></div>
+      <button class="topbar-action" onclick="showToast('Notifications coming soon')">🔔</button>
+    </div>
+    <div class="scroll-content">
+      <div class="greeting">
+        <div class="sub" id="homeGreetSub">Good evening</div>
+        <h1 id="homeGreetH1">Find your <span>perfect</span> table</h1>
+      </div>
+
+      <div class="search-wrap">
+        <div class="search-box" onclick="goSearch()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" placeholder="Search restaurant or cuisine…" readonly>
+        </div>
+      </div>
+
+      <div class="filter-row" id="cuisineFilters">
+        <div class="pill active" onclick="filterCuisine(this)">All</div>
+        <div class="pill" onclick="filterCuisine(this)">🍝 Italian</div>
+        <div class="pill" onclick="filterCuisine(this)">🍣 Japanese</div>
+        <div class="pill" onclick="filterCuisine(this)">🥐 French</div>
+        <div class="pill" onclick="filterCuisine(this)">🥩 Steakhouse</div>
+        <div class="pill" onclick="filterCuisine(this)">🦞 Seafood</div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-label">Featured Tonight</div>
+      </div>
+      <div class="hero-card" onclick="openRestaurant(0)">
+        <img src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80" alt="Restaurant">
+        <div class="overlay">
+          <div class="tag">⭐ Editor's Pick</div>
+          <h2>Lumière</h2>
+          <div class="meta">
+            <span>🍽 French Fine Dining</span>
+            <span>📍 0.8 km</span>
+            <span>★ 4.9</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-label">Recommended For You</div>
+        <button class="see-all" onclick="goSearch()">See all</button>
+      </div>
+      <div class="card-row" id="recommendedRow"></div>
+
+      <div class="section-header" style="margin-top:20px">
+        <div class="section-label">Nearby Hidden Gems</div>
+        <button class="see-all" onclick="goSearch()">See all</button>
+      </div>
+      <div id="nearbyList"></div>
+      <div style="height:20px"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       SEARCH
+  ══════════════════════════════ -->
+  <div id="screen-search" class="screen">
+    <div class="topbar"><div class="logo">Din<span>ery</span></div></div>
+    <div class="search-wrap">
+      <div class="search-box">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search restaurant or cuisine…" id="searchInput" oninput="filterSearch(this.value)">
+      </div>
+    </div>
+    <div class="filter-row" id="searchFilters">
+      <div class="pill active" onclick="filterSearchCuisine(this,'All')">All</div>
+      <div class="pill" onclick="filterSearchCuisine(this,'Italian')">🍝 Italian</div>
+      <div class="pill" onclick="filterSearchCuisine(this,'Japanese')">🍣 Japanese</div>
+      <div class="pill" onclick="filterSearchCuisine(this,'French')">🥐 French</div>
+      <div class="pill" onclick="filterSearchCuisine(this,'Steakhouse')">🥩 Steakhouse</div>
+      <div class="pill" onclick="filterSearchCuisine(this,'Seafood')">🦞 Seafood</div>
+    </div>
+    <div class="scroll-content" id="searchResults"></div>
+  </div>
+
+  <!-- ══════════════════════════════
+       RESTAURANT DETAIL
+  ══════════════════════════════ -->
+  <div id="screen-detail" class="screen">
+    <div class="detail-hero">
+      <img id="detailImg" src="" alt="">
+      <div class="overlay"></div>
+      <button class="back-btn" onclick="goBack('home')">&#8592;</button>
+      <button class="fav-btn" id="favBtn" onclick="toggleFav()">♡</button>
+    </div>
+    <div class="scroll-content">
+      <div class="detail-body">
+        <div class="cuisine-tag" id="detailCuisine"></div>
+        <h1 id="detailName"></h1>
+        <p id="detailDesc" style="margin-top:8px;font-size:14px"></p>
+        <div class="detail-stats">
+          <div class="stat-item"><div class="val" id="detailRating"></div><div class="lbl">Rating</div></div>
+          <div class="stat-item"><div class="val" id="detailDist"></div><div class="lbl">Distance</div></div>
+          <div class="stat-item"><div class="val" id="detailPrice"></div><div class="lbl">Avg. price</div></div>
+          <div class="stat-item"><div class="val" id="detailTime"></div><div class="lbl">Open until</div></div>
+        </div>
+        <div class="menu-tabs">
+          <div class="menu-tab active" onclick="switchTab(this,'menu')">Menu</div>
+          <div class="menu-tab" onclick="switchTab(this,'info')">Info</div>
+          <div class="menu-tab" onclick="switchTab(this,'reviews')">Reviews</div>
+        </div>
+        <div id="tab-menu"><div id="menuItems"></div></div>
+        <div id="tab-info" style="display:none">
+          <div class="summary-row"><span>Address</span><span class="val" id="detailAddress"></span></div>
+          <div class="summary-row" style="margin-top:10px"><span>Phone</span><span class="val" id="detailPhone"></span></div>
+          <div class="summary-row" style="margin-top:10px"><span>Hours</span><span class="val">12:00 – 23:00</span></div>
+          <div class="summary-row" style="margin-top:10px"><span>Dress Code</span><span class="val">Smart Casual</span></div>
+        </div>
+        <div id="tab-reviews" style="display:none"><div id="reviewsList"></div></div>
+      </div>
+    </div>
+    <div class="cta-wrap">
+      <button class="btn-primary" onclick="startBooking()">Reserve a Table</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       BOOKING — DATE & TIME
+  ══════════════════════════════ -->
+  <div id="screen-book-datetime" class="screen">
+    <div class="booking-header">
+      <button class="topbar-back" onclick="goBack('detail')">&#8592;</button>
+      <div class="progress-bar" style="margin-top:16px">
+        <div class="progress-step done"></div>
+        <div class="progress-step"></div>
+        <div class="progress-step"></div>
+        <div class="progress-step"></div>
+      </div>
+      <h2>Choose Date & Time</h2>
+      <p style="margin-top:6px;font-size:14px">Real-time availability at <span id="bookingRestName" style="color:var(--gold)"></span></p>
+    </div>
+    <div class="booking-body scroll-content">
+      <div class="section-label">Select Date</div>
+      <div class="date-grid" id="dateGrid"></div>
+      <div class="section-label">Available Times</div>
+      <div class="time-grid" id="timeGrid"></div>
+    </div>
+    <div class="cta-wrap">
+      <button class="btn-primary" id="btnDateTime" disabled onclick="goScreen('book-seating')">Continue</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       BOOKING — SEATING
+  ══════════════════════════════ -->
+  <div id="screen-book-seating" class="screen">
+    <div class="booking-header">
+      <button class="topbar-back" onclick="goBack('book-datetime')">&#8592;</button>
+      <div class="progress-bar" style="margin-top:16px">
+        <div class="progress-step done"></div>
+        <div class="progress-step done"></div>
+        <div class="progress-step"></div>
+        <div class="progress-step"></div>
+      </div>
+      <h2>Choose Your Seating</h2>
+      <p style="margin-top:6px;font-size:14px">Select your preferred dining area</p>
+    </div>
+    <div class="booking-body scroll-content">
+      <div class="seating-option" id="seat-terrace" onclick="selectSeat('terrace')">
+        <div class="icon">🌿</div>
+        <div>
+          <div class="label">Terrace</div>
+          <div class="desc">Open-air dining with garden views</div>
+          <div class="occupancy-bar-wrap">
+            <div class="occupancy-bar"><div class="occupancy-fill fill-low" style="width:30%"></div></div>
+            <div class="occupancy-label">30% occupied — plenty of space</div>
+          </div>
+        </div>
+        <div class="radio"></div>
+      </div>
+      <div class="seating-option" id="seat-main" onclick="selectSeat('main')">
+        <div class="icon">🍽</div>
+        <div>
+          <div class="label">Main Hall</div>
+          <div class="desc">Vibrant atmosphere, central dining</div>
+          <div class="occupancy-bar-wrap">
+            <div class="occupancy-bar"><div class="occupancy-fill fill-mid" style="width:65%"></div></div>
+            <div class="occupancy-label">65% occupied — filling up</div>
+          </div>
+        </div>
+        <div class="radio"></div>
+      </div>
+      <div class="seating-option" id="seat-vip" onclick="selectSeat('vip')">
+        <div class="icon">👑</div>
+        <div>
+          <div class="label">VIP Room</div>
+          <div class="desc">Exclusive private dining experience</div>
+          <div class="occupancy-bar-wrap">
+            <div class="occupancy-bar"><div class="occupancy-fill fill-high" style="width:85%"></div></div>
+            <div class="occupancy-label">85% occupied — limited availability</div>
+          </div>
+        </div>
+        <div class="radio"></div>
+      </div>
+    </div>
+    <div class="cta-wrap">
+      <button class="btn-primary" id="btnSeating" disabled onclick="goScreen('book-guests')">Continue</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       BOOKING — GUESTS
+  ══════════════════════════════ -->
+  <div id="screen-book-guests" class="screen">
+    <div class="booking-header">
+      <button class="topbar-back" onclick="goBack('book-seating')">&#8592;</button>
+      <div class="progress-bar" style="margin-top:16px">
+        <div class="progress-step done"></div>
+        <div class="progress-step done"></div>
+        <div class="progress-step done"></div>
+        <div class="progress-step"></div>
+      </div>
+      <h2>How many guests?</h2>
+      <p style="margin-top:6px;font-size:14px">Tailor your reservation for the perfect seating arrangement</p>
+    </div>
+    <div class="booking-body">
+      <div class="guest-counter">
+        <button class="counter-btn" id="btnMinus" onclick="changeGuests(-1)">−</button>
+        <div class="counter-val" id="guestCount">2</div>
+        <button class="counter-btn" onclick="changeGuests(1)">+</button>
+      </div>
+      <div class="counter-sub" id="guestLabel">guests</div>
+      <div class="group-note" id="groupNote" style="display:none">
+        🎉 For groups of 7 or more, our team will personally reach out to arrange the perfect setup.
+      </div>
+    </div>
+    <div class="cta-wrap">
+      <button class="btn-primary" onclick="goScreen('book-details')">Continue</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       BOOKING — DETAILS FORM
+  ══════════════════════════════ -->
+  <div id="screen-book-details" class="screen">
+    <div class="booking-header">
+      <button class="topbar-back" onclick="goBack('book-guests')">&#8592;</button>
+      <div class="progress-bar" style="margin-top:16px">
+        <div class="progress-step done"></div>
+        <div class="progress-step done"></div>
+        <div class="progress-step done"></div>
+        <div class="progress-step done"></div>
+      </div>
+      <h2>Your Details</h2>
+      <p style="margin-top:6px;font-size:14px">Personalise your dining experience</p>
+    </div>
+    <div class="booking-body scroll-content">
+      <div class="booking-summary">
+        <h3>Reservation Summary</h3>
+        <div class="summary-row"><span>Restaurant</span><span class="val" id="sumRestName"></span></div>
+        <div class="summary-row"><span>Date & Time</span><span class="val" id="sumDateTime"></span></div>
+        <div class="summary-row"><span>Seating</span><span class="val" id="sumSeating"></span></div>
+        <div class="summary-row"><span>Guests</span><span class="val" id="sumGuests"></span></div>
+      </div>
+
+      <div class="autofill-badge" id="autofillBadge" style="display:none">
+        ✓ Details filled from your profile
+      </div>
+
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="fieldName" placeholder="Your full name" oninput="validateForm()">
+      </div>
+      <div class="form-group">
+        <label>Phone Number</label>
+        <input type="tel" id="fieldPhone" placeholder="+1 234 567 8900" oninput="validateForm()">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="fieldEmail" placeholder="your@email.com">
+      </div>
+      <div class="form-group">
+        <label>Special Requests</label>
+        <textarea id="fieldRequests" placeholder="Allergies, celebrations, seating preferences…"></textarea>
+      </div>
+    </div>
+    <div class="cta-wrap">
+      <button class="btn-primary" id="btnConfirm" disabled onclick="confirmBooking()">Confirm Reservation</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       BOOKING CONFIRMED
+  ══════════════════════════════ -->
+  <div id="screen-confirmed" class="screen">
+    <div class="confirm-screen">
+      <div class="confirm-icon">✓</div>
+      <h1>Booking Confirmed!</h1>
       <p>Your table is reserved. We look forward to welcoming you.</p>
       <div class="confirm-card">
         <div class="rest-name" id="confRestName"></div>
@@ -77,18 +425,6 @@
   </div>
 
   <!-- ══════════════════════════════
-       SAVED RESTAURANTS
-  ══════════════════════════════ -->
-  <div id="screen-saved" class="screen">
-    <div class="topbar">
-      <button class="topbar-back" onclick="goBack('profile')">&#8592;</button>
-      <div class="logo">Saved<span> Places</span></div>
-      <button class="topbar-action" onclick="goSearch()">＋</button>
-    </div>
-    <div class="scroll-content" id="savedList"></div>
-  </div>
-
-  <!-- ══════════════════════════════
        PROFILE
   ══════════════════════════════ -->
   <div id="screen-profile" class="screen">
@@ -99,3 +435,105 @@
         <p id="profileEmail">Not signed in</p>
       </div>
     </div>
+    <div class="profile-menu-item" onclick="goScreen('reservations')">
+      <div class="left"><span class="mi-icon">📋</span><span class="mi-label">My Reservations</span></div>
+      <span class="arrow">›</span>
+    </div>
+    <div class="profile-menu-item" id="profileEditRow" onclick="goScreen('edit-profile')" style="display:none">
+      <div class="left"><span class="mi-icon">✏️</span><span class="mi-label">Edit Profile</span></div>
+      <span class="arrow">›</span>
+    </div>
+    <div class="profile-menu-item" onclick="showToast('Favourites coming soon')">
+      <div class="left"><span class="mi-icon">❤️</span><span class="mi-label">Saved Restaurants</span></div>
+      <span class="arrow">›</span>
+    </div>
+    <div class="profile-menu-item" onclick="showToast('Notifications coming soon')">
+      <div class="left"><span class="mi-icon">🔔</span><span class="mi-label">Notifications</span></div>
+      <span class="arrow">›</span>
+    </div>
+    <div class="profile-menu-item" onclick="showToast('Payment settings coming soon')">
+      <div class="left"><span class="mi-icon">💳</span><span class="mi-label">Payment Methods</span></div>
+      <span class="arrow">›</span>
+    </div>
+    <div class="profile-menu-item" onclick="showToast('Help & Support coming soon')">
+      <div class="left"><span class="mi-icon">💬</span><span class="mi-label">Help & Support</span></div>
+      <span class="arrow">›</span>
+    </div>
+    <div class="profile-menu-item" id="signInRow" onclick="goScreen('signin')" style="display:none">
+      <div class="left"><span class="mi-icon">🔑</span><span class="mi-label" style="color:var(--gold)">Sign In</span></div>
+      <span class="arrow">›</span>
+    </div>
+    <div class="profile-menu-item" id="createAccRow" onclick="goScreen('signup')" style="display:none">
+      <div class="left"><span class="mi-icon">✨</span><span class="mi-label" style="color:var(--gold)">Create Account</span></div>
+      <span class="arrow">›</span>
+    </div>
+    <div class="profile-menu-item danger" id="signOutRow" onclick="doSignOut()" style="display:none">
+      <div class="left"><span class="mi-icon">🚪</span><span class="mi-label">Sign Out</span></div>
+      <span class="arrow">›</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       EDIT PROFILE
+  ══════════════════════════════ -->
+  <div id="screen-edit-profile" class="screen" style="padding-bottom:0">
+    <div class="scroll-content">
+      <div class="auth-screen" style="justify-content:flex-start; padding-top:60px">
+        <button class="topbar-back" style="margin-bottom:24px;padding:0" onclick="goBack('profile')">&#8592;</button>
+        <div class="auth-title">Edit Profile</div>
+        <div class="auth-sub">Changes apply to all future bookings</div>
+
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="ep-name" placeholder="Your full name">
+        </div>
+        <div class="form-group">
+          <label>Phone Number</label>
+          <input type="tel" id="ep-phone" placeholder="+1 234 567 8900">
+        </div>
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="ep-email" placeholder="your@email.com">
+        </div>
+        <div class="form-group">
+          <label>New Password <span style="color:var(--gray);font-weight:400;text-transform:none;letter-spacing:0">(leave blank to keep current)</span></label>
+          <div class="pw-wrap">
+            <input type="password" id="ep-password" placeholder="New password">
+            <button class="pw-toggle" onclick="togglePw('ep-password',this)">👁</button>
+          </div>
+        </div>
+
+        <button class="btn-primary" onclick="saveProfile()" style="margin-top:8px">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       BOTTOM NAV
+  ══════════════════════════════ -->
+  <nav class="bottomnav" id="bottomnav">
+    <div class="nav-logo">Din<span>ery</span></div>
+    <button class="active" id="nav-home" onclick="goScreen('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Home
+    </button>
+    <button id="nav-search" onclick="goScreen('search')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Explore
+    </button>
+    <button id="nav-reservations" onclick="goScreen('reservations')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Bookings
+    </button>
+    <button id="nav-profile" onclick="goScreen('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Profile
+    </button>
+  </nav>
+
+  <div id="toast"></div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
