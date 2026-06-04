@@ -124,19 +124,71 @@ let state = {
   selectedTime       : null,
   selectedSeating    : null,
   guestCount         : 2,
-  favourites         : [],          // loaded from user.savedRestaurants on login
-  reservations       : JSON.parse(localStorage.getItem('dn_reservations') || '[]'),
+  favourites         : [],
+  reservations       : [],
   searchFilter       : 'All',
-  user               : JSON.parse(localStorage.getItem('dn_user') || 'null'),
-  pendingSaveId      : null,        // restaurant id queued to save after auth
+  user               : null,   // { uid?, name, phone, email }
+  pendingSaveId      : null,
 };
+
+// ── Firebase detection ───────────────────────────────────────────────────────
+function fbReady() {
+  try {
+    return typeof firebase !== 'undefined' &&
+           firebase.apps.length > 0 &&
+           !firebase.app().options.apiKey.startsWith('REPLACE');
+  } catch(e) { return false; }
+}
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  if (state.user) state.favourites = state.user.savedRestaurants || [];
+  if (!fbReady()) {
+    // localStorage fallback — no Firebase configured
+    state.reservations = JSON.parse(localStorage.getItem('dn_reservations') || '[]');
+    const saved = JSON.parse(localStorage.getItem('dn_user') || 'null');
+    if (saved) {
+      state.user       = saved;
+      state.favourites = saved.savedRestaurants || [];
+    }
+  }
+
   renderSearchResults();
   renderHome();
   goScreen('home');
+
+  if (fbReady()) {
+    auth.onAuthStateChanged(async (firebaseUser) => {
+      if (firebaseUser) {
+        // Set minimal user immediately so UI unblocks (saves, etc.)
+        if (!state.user) {
+          state.user = { uid: firebaseUser.uid, name: '', phone: '', email: firebaseUser.email };
+        }
+        // Load full profile from Firestore
+        try {
+          const doc = await db.collection('users').doc(firebaseUser.uid).get();
+          if (doc.exists) {
+            const d = doc.data();
+            state.user         = { uid: firebaseUser.uid, name: d.name || '', phone: d.phone || '', email: firebaseUser.email };
+            state.favourites   = d.savedRestaurants || [];
+            state.reservations = d.reservations || [];
+            renderHome();
+            renderProfile();
+            refreshCards();
+            if (state.currentScreen === 'reservations') renderReservations();
+            if (state.currentScreen === 'saved') renderSaved();
+          }
+        } catch(e) { /* profile load failed — user is still authenticated */ }
+      } else if (state.user) {
+        // Session ended externally (e.g. token expired)
+        state.user         = null;
+        state.favourites   = [];
+        state.reservations = [];
+        renderHome();
+        renderProfile();
+        refreshCards();
+      }
+    });
+  }
 });
 
 // ── Navigation ────────────────────────────────────────────────────────────────
@@ -146,18 +198,15 @@ function goScreen(id) {
   state.prevScreen    = state.currentScreen;
   state.currentScreen = id;
 
-  // 'saved' is a sub-screen of profile — keep profile tab highlighted
   document.querySelectorAll('.bottomnav button').forEach(b => b.classList.remove('active'));
   const navBtn = document.getElementById('nav-' + (id === 'saved' ? 'profile' : id));
   if (navBtn) navBtn.classList.add('active');
 
-  // hide bottom nav for auth + booking screens (on desktop it stays as sidebar)
   const hideNav = [...AUTH_SCREENS, ...BOOKING_SCREENS, 'edit-profile'].includes(id);
   if (window.innerWidth < 1200) {
     document.getElementById('bottomnav').style.display = hideNav ? 'none' : 'flex';
   }
 
-  // per-screen init
   if (id === 'home')         renderHome();
   if (id === 'reservations') renderReservations();
   if (id === 'profile')      renderProfile();
@@ -176,83 +225,134 @@ function goSearch() {
 }
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
-function doSignUp() {
+async function doSignUp() {
   const name     = document.getElementById('su-name').value.trim();
   const phone    = document.getElementById('su-phone').value.trim();
   const email    = document.getElementById('su-email').value.trim();
   const password = document.getElementById('su-password').value;
 
   let ok = true;
-  if (!name)                         { showErr('err-su-name',     'Please enter your name');                  ok = false; }
-  if (!phone)                        { showErr('err-su-phone',    'Please enter your phone number');          ok = false; }
-  if (!email || !email.includes('@')){ showErr('err-su-email',    'Please enter a valid email');              ok = false; }
-  if (password.length < 6)           { showErr('err-su-password', 'Password must be at least 6 characters'); ok = false; }
+  if (!name)                          { showErr('err-su-name',     'Please enter your name');                  ok = false; }
+  if (!phone)                         { showErr('err-su-phone',    'Please enter your phone number');          ok = false; }
+  if (!email || !email.includes('@')) { showErr('err-su-email',    'Please enter a valid email');              ok = false; }
+  if (password.length < 6)            { showErr('err-su-password', 'Password must be at least 6 characters'); ok = false; }
   if (!ok) return;
 
-  const users = JSON.parse(localStorage.getItem('dn_users') || '[]');
-  const exists = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-  if (exists) {
-    showErr('err-su-email', 'An account with this email already exists — please sign in instead.');
-    return;
+  if (fbReady()) {
+    try {
+      const cred = await auth.createUserWithEmailAndPassword(email, password);
+      const uid  = cred.user.uid;
+      await db.collection('users').doc(uid).set({
+        name, phone, email, savedRestaurants: [], reservations: []
+      });
+      state.user         = { uid, name, phone, email };
+      state.favourites   = [];
+      state.reservations = [];
+
+      if (state.pendingSaveId !== null) {
+        state.favourites.push(state.pendingSaveId);
+        state.pendingSaveId = null;
+        persistFavourites();
+      }
+
+      showToast('Account created! Welcome, ' + name.split(' ')[0] + ' 👋');
+      goScreen(state.prevScreen === 'confirmed' ? 'confirmed' : 'home');
+    } catch(err) {
+      if (err.code === 'auth/email-already-in-use') {
+        showErr('err-su-email', 'An account with this email already exists — please sign in instead.');
+      } else if (err.code === 'auth/weak-password') {
+        showErr('err-su-password', 'Password must be at least 6 characters');
+      } else {
+        showErr('err-su-email', err.message || 'Sign up failed. Please try again.');
+      }
+    }
+  } else {
+    // localStorage fallback
+    const users  = JSON.parse(localStorage.getItem('dn_users') || '[]');
+    const exists = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    if (exists) {
+      showErr('err-su-email', 'An account with this email already exists — please sign in instead.');
+      return;
+    }
+    const user = { name, phone, email, password, savedRestaurants: [] };
+    users.push(user);
+    localStorage.setItem('dn_users', JSON.stringify(users));
+    localStorage.setItem('dn_user',  JSON.stringify(user));
+    state.user       = user;
+    state.favourites = [];
+
+    if (state.pendingSaveId !== null) {
+      state.favourites.push(state.pendingSaveId);
+      state.pendingSaveId = null;
+      persistFavourites();
+    }
+    showToast('Account created! Welcome, ' + name.split(' ')[0] + ' 👋');
+    goScreen(state.prevScreen === 'confirmed' ? 'confirmed' : 'home');
   }
-
-  const user = { name, phone, email, password, savedRestaurants: [] };
-  users.push(user);
-  localStorage.setItem('dn_users', JSON.stringify(users));
-  localStorage.setItem('dn_user',  JSON.stringify(user));
-  state.user      = user;
-  state.favourites = [];
-
-  // Auto-save the restaurant the guest was trying to save before signing up
-  if (state.pendingSaveId !== null) {
-    state.favourites.push(state.pendingSaveId);
-    state.pendingSaveId = null;
-    persistFavourites();
-  }
-
-  showToast('Account created! Welcome, ' + name.split(' ')[0] + ' 👋');
-  goScreen(state.prevScreen === 'confirmed' ? 'confirmed' : 'home');
 }
 
-function doSignIn() {
+async function doSignIn() {
   const email    = document.getElementById('si-email').value.trim();
   const password = document.getElementById('si-password').value;
 
-  const users = JSON.parse(localStorage.getItem('dn_users') || '[]');
-  const found = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+  if (fbReady()) {
+    try {
+      const cred = await auth.signInWithEmailAndPassword(email, password);
+      const uid  = cred.user.uid;
+      const doc  = await db.collection('users').doc(uid).get();
+      const d    = doc.data() || {};
 
-  if (!found) {
-    showErr('err-si', 'Email or password is incorrect');
-    return;
-  }
+      state.user         = { uid, name: d.name || '', phone: d.phone || '', email };
+      state.favourites   = d.savedRestaurants || [];
+      state.reservations = d.reservations || [];
 
-  state.user       = found;
-  state.favourites = found.savedRestaurants || [];
-  localStorage.setItem('dn_user', JSON.stringify(found));
+      if (state.pendingSaveId !== null) {
+        if (!state.favourites.includes(state.pendingSaveId)) {
+          state.favourites.push(state.pendingSaveId);
+          persistFavourites();
+        }
+        state.pendingSaveId = null;
+      }
 
-  // Auto-save any restaurant queued before sign-in
-  if (state.pendingSaveId !== null) {
-    if (!state.favourites.includes(state.pendingSaveId)) {
-      state.favourites.push(state.pendingSaveId);
-      persistFavourites();
+      showToast('Welcome back, ' + (d.name || email).split(' ')[0] + ' 👋');
+      goScreen(state.prevScreen === 'profile' ? 'profile' : 'home');
+    } catch(err) {
+      showErr('err-si', 'Email or password is incorrect');
     }
-    state.pendingSaveId = null;
-  }
+  } else {
+    // localStorage fallback
+    const users = JSON.parse(localStorage.getItem('dn_users') || '[]');
+    const found = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+    if (!found) { showErr('err-si', 'Email or password is incorrect'); return; }
 
-  showToast('Welcome back, ' + found.name.split(' ')[0] + ' 👋');
-  goScreen(state.prevScreen === 'profile' ? 'profile' : 'home');
+    state.user       = found;
+    state.favourites = found.savedRestaurants || [];
+    localStorage.setItem('dn_user', JSON.stringify(found));
+
+    if (state.pendingSaveId !== null) {
+      if (!state.favourites.includes(state.pendingSaveId)) {
+        state.favourites.push(state.pendingSaveId);
+        persistFavourites();
+      }
+      state.pendingSaveId = null;
+    }
+    showToast('Welcome back, ' + found.name.split(' ')[0] + ' 👋');
+    goScreen(state.prevScreen === 'profile' ? 'profile' : 'home');
+  }
 }
 
-function doSignOut() {
+async function doSignOut() {
   if (!confirm('Sign out of Dinery?')) return;
-  state.user       = null;
-  state.favourites = [];
-  localStorage.removeItem('dn_user');
+  if (fbReady()) { await auth.signOut(); }
+  else           { localStorage.removeItem('dn_user'); }
+  state.user         = null;
+  state.favourites   = [];
+  state.reservations = [];
   goScreen('home');
   showToast('Signed out');
 }
 
-function saveProfile() {
+async function saveProfile() {
   const name     = document.getElementById('ep-name').value.trim();
   const phone    = document.getElementById('ep-phone').value.trim();
   const email    = document.getElementById('ep-email').value.trim();
@@ -260,27 +360,47 @@ function saveProfile() {
 
   if (!name || !phone || !email) { showToast('Please fill all required fields'); return; }
 
-  const users = JSON.parse(localStorage.getItem('dn_users') || '[]');
-  const conflict = users.find(u =>
-    u.email.toLowerCase() === email.toLowerCase() &&
-    u.email.toLowerCase() !== state.user.email.toLowerCase()
-  );
-  if (conflict) { showToast('That email is already used by another account'); return; }
-
-  const updated = {
-    ...state.user,
-    name, phone, email,
-    savedRestaurants: state.user.savedRestaurants || [],
-    ...(password.length >= 6 ? { password } : {}),
-  };
-
-  const idx = users.findIndex(u => u.email.toLowerCase() === state.user.email.toLowerCase());
-  if (idx !== -1) users[idx] = updated; else users.push(updated);
-  localStorage.setItem('dn_users', JSON.stringify(users));
-  localStorage.setItem('dn_user',  JSON.stringify(updated));
-  state.user = updated;
-  showToast('Profile updated ✓');
-  goScreen('profile');
+  if (fbReady() && state.user?.uid) {
+    try {
+      await db.collection('users').doc(state.user.uid).update({ name, phone });
+      if (password.length >= 6) {
+        try {
+          await auth.currentUser.updatePassword(password);
+        } catch(e) {
+          if (e.code === 'auth/requires-recent-login') {
+            showToast('Sign out and sign back in to change your password.');
+            return;
+          }
+        }
+      }
+      state.user = { ...state.user, name, phone };
+      showToast('Profile updated ✓');
+      goScreen('profile');
+      renderProfile();
+    } catch(err) {
+      showToast(err.message || 'Update failed. Please try again.');
+    }
+  } else {
+    // localStorage fallback
+    const users    = JSON.parse(localStorage.getItem('dn_users') || '[]');
+    const conflict = users.find(u =>
+      u.email.toLowerCase() === email.toLowerCase() &&
+      u.email.toLowerCase() !== state.user.email.toLowerCase()
+    );
+    if (conflict) { showToast('That email is already used by another account'); return; }
+    const updated = {
+      ...state.user, name, phone, email,
+      savedRestaurants: state.user.savedRestaurants || [],
+      ...(password.length >= 6 ? { password } : {}),
+    };
+    const idx = users.findIndex(u => u.email.toLowerCase() === state.user.email.toLowerCase());
+    if (idx !== -1) users[idx] = updated; else users.push(updated);
+    localStorage.setItem('dn_users', JSON.stringify(users));
+    localStorage.setItem('dn_user',  JSON.stringify(updated));
+    state.user = updated;
+    showToast('Profile updated ✓');
+    goScreen('profile');
+  }
 }
 
 function populateEditForm() {
@@ -295,8 +415,8 @@ function populateEditForm() {
 function renderProfile() {
   const u = state.user;
   if (u) {
-    document.getElementById('profileAvatar').textContent = u.name.charAt(0).toUpperCase();
-    document.getElementById('profileName').textContent   = u.name;
+    document.getElementById('profileAvatar').textContent = (u.name || u.email || 'U').charAt(0).toUpperCase();
+    document.getElementById('profileName').textContent   = u.name || u.email;
     document.getElementById('profileEmail').textContent  = u.email;
     document.getElementById('profileEditRow').style.display = '';
     document.getElementById('signOutRow').style.display     = '';
@@ -320,7 +440,7 @@ function renderHome() {
   document.getElementById('homeGreetSub').textContent = period;
   if (state.user) {
     document.getElementById('homeGreetH1').innerHTML =
-      `Hi, <span>${state.user.name.split(' ')[0]}</span> 👋`;
+      `Hi, <span>${(state.user.name || state.user.email || '').split(' ')[0]}</span> 👋`;
   } else {
     document.getElementById('homeGreetH1').innerHTML =
       `Find your <span>perfect</span> table`;
@@ -494,13 +614,18 @@ function toggleFav(id) {
 
 function persistFavourites() {
   if (!state.user) return;
-  state.user.savedRestaurants = [...state.favourites];
-  localStorage.setItem('dn_user', JSON.stringify(state.user));
-  const users = JSON.parse(localStorage.getItem('dn_users') || '[]');
-  const idx   = users.findIndex(u => u.email.toLowerCase() === state.user.email.toLowerCase());
-  if (idx !== -1) {
-    users[idx].savedRestaurants = [...state.favourites];
-    localStorage.setItem('dn_users', JSON.stringify(users));
+  if (fbReady() && state.user.uid) {
+    db.collection('users').doc(state.user.uid).update({ savedRestaurants: [...state.favourites] })
+      .catch(() => {});
+  } else {
+    state.user.savedRestaurants = [...state.favourites];
+    localStorage.setItem('dn_user', JSON.stringify(state.user));
+    const users = JSON.parse(localStorage.getItem('dn_users') || '[]');
+    const idx   = users.findIndex(u => u.email.toLowerCase() === state.user.email.toLowerCase());
+    if (idx !== -1) {
+      users[idx].savedRestaurants = [...state.favourites];
+      localStorage.setItem('dn_users', JSON.stringify(users));
+    }
   }
 }
 
@@ -513,9 +638,9 @@ function updateFavBtn() {
 }
 
 function refreshCards() {
-  if (state.currentScreen === 'home') { renderRecommended(); renderNearby(); }
+  if (state.currentScreen === 'home')   { renderRecommended(); renderNearby(); }
   if (state.currentScreen === 'search') renderSearchResults(document.getElementById('searchInput')?.value || '', state.searchFilter);
-  if (state.currentScreen === 'saved') renderSaved();
+  if (state.currentScreen === 'saved')  renderSaved();
 }
 
 // ── Auth prompt (save without account) ───────────────────────────────────────
@@ -682,7 +807,7 @@ function validateForm() {
   document.getElementById('btnConfirm').disabled = !(name && phone);
 }
 
-function confirmBooking() {
+async function confirmBooking() {
   const r        = state.selectedRestaurant;
   const name     = document.getElementById('fieldName').value.trim();
   const phone    = document.getElementById('fieldPhone').value.trim();
@@ -697,7 +822,13 @@ function confirmBooking() {
     guests:state.guestCount, name, phone, requests, ts:Date.now(),
   };
   state.reservations.unshift(booking);
-  localStorage.setItem('dn_reservations', JSON.stringify(state.reservations));
+
+  if (fbReady() && state.user?.uid) {
+    db.collection('users').doc(state.user.uid).update({ reservations: state.reservations })
+      .catch(() => { localStorage.setItem('dn_reservations', JSON.stringify(state.reservations)); });
+  } else {
+    localStorage.setItem('dn_reservations', JSON.stringify(state.reservations));
+  }
 
   state.lastBookingName  = name;
   state.lastBookingPhone = phone;
