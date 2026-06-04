@@ -300,7 +300,15 @@ async function doSignIn() {
       const cred = await auth.signInWithEmailAndPassword(email, password);
       const uid  = cred.user.uid;
       const doc  = await db.collection('users').doc(uid).get();
-      const d    = doc.data() || {};
+      let d = {};
+      if (doc.exists) {
+        d = doc.data();
+      } else {
+        // First sign-in — create the Firestore document
+        await db.collection('users').doc(uid).set({
+          name: '', phone: '', email, savedRestaurants: [], reservations: []
+        });
+      }
 
       state.user         = { uid, name: d.name || '', phone: d.phone || '', email };
       state.favourites   = d.savedRestaurants || [];
@@ -362,7 +370,7 @@ async function saveProfile() {
 
   if (fbReady() && state.user?.uid) {
     try {
-      await db.collection('users').doc(state.user.uid).update({ name, phone });
+      await db.collection('users').doc(state.user.uid).set({ name, phone }, { merge: true });
       if (password.length >= 6) {
         try {
           await auth.currentUser.updatePassword(password);
@@ -615,8 +623,9 @@ function toggleFav(id) {
 function persistFavourites() {
   if (!state.user) return;
   if (fbReady() && state.user.uid) {
-    db.collection('users').doc(state.user.uid).update({ savedRestaurants: [...state.favourites] })
-      .catch(() => {});
+    db.collection('users').doc(state.user.uid).set(
+      { savedRestaurants: [...state.favourites] }, { merge: true }
+    ).catch(e => console.error('persistFavourites failed:', e));
   } else {
     state.user.savedRestaurants = [...state.favourites];
     localStorage.setItem('dn_user', JSON.stringify(state.user));
@@ -824,8 +833,12 @@ async function confirmBooking() {
   state.reservations.unshift(booking);
 
   if (fbReady() && state.user?.uid) {
-    db.collection('users').doc(state.user.uid).update({ reservations: state.reservations })
-      .catch(() => { localStorage.setItem('dn_reservations', JSON.stringify(state.reservations)); });
+    db.collection('users').doc(state.user.uid).set(
+      { reservations: state.reservations }, { merge: true }
+    ).catch(e => {
+      console.error('Reservation save failed:', e);
+      localStorage.setItem('dn_reservations', JSON.stringify(state.reservations));
+    });
   } else {
     localStorage.setItem('dn_reservations', JSON.stringify(state.reservations));
   }
