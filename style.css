@@ -1,15 +1,15 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --black:   #1A0808;   /* near black  — main background        */
-      --dark:    #200B0B;   /* slightly lifted bg                   */
-      --card:    #2A0D0D;   /* card surfaces                        */
-      --border:  #391212;   /* deep burgundy — borders & dividers   */
-      --gold:    #B87040;   /* cognac — primary accent              */
-      --gold2:   #D4924E;   /* cognac light — gradient highlight    */
-      --white:   #FAF4E8;   /* warm cream — headings & labels       */
-      --gray:    #8A6A58;   /* muted warm brown — placeholders      */
-      --light:   #C4A090;   /* warm light — body copy               */
+      --black:   #1A0808;   /* Text Dark — headings & text on accents     */
+      --dark:    #F2E8D4;   /* Cream Mid — feature strip / alt bg         */
+      --card:    #FAF4E8;   /* Warm Cream — card & input surfaces         */
+      --border:  #391212;   /* Primary Burgundy — borders & dividers      */
+      --gold:    #B87040;   /* Cognac Accent — CTAs, icons, labels        */
+      --gold2:   #D4924E;   /* Cognac Light — gradient highlight          */
+      --white:   #1A0808;   /* Text Dark — primary text on light bg       */
+      --gray:    #8A6A58;   /* Muted warm brown — secondary text          */
+      --light:   #5A3030;   /* Warm mid-dark — body copy                  */
       --danger:  #D94444;
       --success: #5BAF7D;
       --radius:  16px;
@@ -17,7 +17,7 @@
 
     html, body {
       height: 100%;
-      background: var(--black);
+      background: #FDF8F0;
       color: var(--white);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       overflow-x: hidden;
@@ -28,7 +28,7 @@
       margin: 0 auto;
       min-height: 100vh;
       position: relative;
-      background: var(--black);
+      background: #FDF8F0;
     }
 
     .screen {
@@ -48,7 +48,7 @@
       position: sticky;
       top: 0;
       z-index: 10;
-      background: linear-gradient(to bottom, var(--black) 80%, transparent);
+      background: linear-gradient(to bottom, #FDF8F0 80%, transparent);
     }
     .logo { font-size: 22px; font-weight: 700; letter-spacing: 1px; color: var(--gold); }
     .logo span { color: var(--white); }
@@ -62,7 +62,7 @@
     .bottomnav {
       position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
       width: 100%; max-width: 480px;
-      background: rgba(17,17,17,0.97); border-top: 1px solid var(--border);
+      background: rgba(253,248,240,0.97); border-top: 1px solid var(--border);
       display: flex; z-index: 100; backdrop-filter: blur(12px);
     }
     .bottomnav button {
@@ -126,9 +126,9 @@
       font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
       border-radius: 4px; padding: 3px 8px; margin-bottom: 8px; width: fit-content;
     }
-    .hero-card h2 { font-size: 20px; margin-bottom: 6px; }
+    .hero-card h2 { font-size: 20px; margin-bottom: 6px; color: #FAF4E8; }
     .hero-card .meta { display: flex; gap: 12px; }
-    .hero-card .meta span { font-size: 12px; color: var(--light); }
+    .hero-card .meta span { font-size: 12px; color: #FAF4E8; }
 
     /* ── Cards ── */
     .card-row { display: flex; gap: 14px; padding: 0 20px 8px; overflow-x: auto; scrollbar-width: none; }
@@ -224,7 +224,7 @@
     /* ── Buttons ── */
     .cta-wrap {
       padding: 16px 20px; position: sticky; bottom: 80px;
-      background: linear-gradient(to top, var(--black) 80%, transparent);
+      background: linear-gradient(to top, #FDF8F0 80%, transparent);
     }
     .btn-primary {
       width: 100%; background: linear-gradient(135deg, var(--gold), var(--gold2));
@@ -357,7 +357,7 @@
     }
     .form-group input:focus, .form-group textarea:focus { border-color: var(--gold); }
     .form-group textarea { resize: none; height: 90px; }
-    .form-group input::placeholder, .form-group textarea::placeholder { color: #444; }
+    .form-group input::placeholder, .form-group textarea::placeholder { color: var(--gray); }
 
     /* autofill indicator */
     .autofill-badge {
