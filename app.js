@@ -131,65 +131,54 @@ let state = {
   pendingSaveId      : null,
 };
 
-// ── Firebase detection ───────────────────────────────────────────────────────
-function fbReady() {
-  try {
-    return typeof firebase !== 'undefined' &&
-           firebase.apps.length > 0 &&
-           !firebase.app().options.apiKey.startsWith('REPLACE');
-  } catch(e) { return false; }
-}
-
 // ── Boot ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  if (!fbReady()) {
-    // localStorage fallback — no Firebase configured
-    state.reservations = JSON.parse(localStorage.getItem('dn_reservations') || '[]');
-    const saved = JSON.parse(localStorage.getItem('dn_user') || 'null');
-    if (saved) {
-      state.user       = saved;
-      state.favourites = saved.savedRestaurants || [];
-    }
-  }
-
   renderSearchResults();
   renderHome();
   goScreen('home');
 
-  if (fbReady()) {
-    auth.onAuthStateChanged(async (firebaseUser) => {
-      if (firebaseUser) {
-        // Set minimal user immediately so UI unblocks (saves, etc.)
-        if (!state.user) {
-          state.user = { uid: firebaseUser.uid, name: '', phone: '', email: firebaseUser.email };
-        }
-        // Load full profile from Firestore
-        try {
-          const doc = await db.collection('users').doc(firebaseUser.uid).get();
-          if (doc.exists) {
-            const d = doc.data();
-            state.user         = { uid: firebaseUser.uid, name: d.name || '', phone: d.phone || '', email: firebaseUser.email };
-            state.favourites   = d.savedRestaurants || [];
-            state.reservations = d.reservations || [];
-            renderHome();
-            renderProfile();
-            refreshCards();
-            if (state.currentScreen === 'reservations') renderReservations();
-            if (state.currentScreen === 'saved') renderSaved();
-          }
-        } catch(e) { /* profile load failed — user is still authenticated */ }
-      } else if (state.user) {
-        // Session ended externally (e.g. token expired)
-        state.user         = null;
-        state.favourites   = [];
-        state.reservations = [];
-        renderHome();
-        renderProfile();
-        refreshCards();
-      }
-    });
-  }
+  auth.onAuthStateChanged(async (firebaseUser) => {
+    if (firebaseUser) {
+      // Set minimal user immediately so UI unblocks (saves, etc.)
+      state.user = { uid: firebaseUser.uid, name: '', phone: '', email: firebaseUser.email };
+      await loadUserData(firebaseUser.uid, firebaseUser.email);
+      renderHome();
+      renderProfile();
+      refreshCards();
+      if (state.currentScreen === 'reservations') renderReservations();
+    } else if (state.user) {
+      state.user         = null;
+      state.favourites   = [];
+      state.reservations = [];
+      renderHome();
+      renderProfile();
+      refreshCards();
+    }
+  });
 });
+
+// Load the user's profile, favourites and reservations from Firestore.
+// Creates the document on first sign-in if it doesn't exist yet.
+async function loadUserData(uid, email) {
+  try {
+    const doc = await db.collection('users').doc(uid).get();
+    if (doc.exists) {
+      const d = doc.data();
+      state.user         = { uid, name: d.name || '', phone: d.phone || '', email };
+      state.favourites   = d.savedRestaurants || [];
+      state.reservations = d.reservations || [];
+    } else {
+      await db.collection('users').doc(uid).set({
+        name: '', phone: '', email, savedRestaurants: [], reservations: []
+      });
+      state.favourites   = [];
+      state.reservations = [];
+    }
+  } catch(e) {
+    console.error('Failed to load profile from Firestore:', e);
+    showToast('Could not load your data — check your connection');
+  }
+}
 
 // ── Navigation ────────────────────────────────────────────────────────────────
 function goScreen(id) {
@@ -238,121 +227,78 @@ async function doSignUp() {
   if (password.length < 6)            { showErr('err-su-password', 'Password must be at least 6 characters'); ok = false; }
   if (!ok) return;
 
-  if (fbReady()) {
-    try {
-      const cred = await auth.createUserWithEmailAndPassword(email, password);
-      const uid  = cred.user.uid;
-      await db.collection('users').doc(uid).set({
-        name, phone, email, savedRestaurants: [], reservations: []
-      });
-      state.user         = { uid, name, phone, email };
-      state.favourites   = [];
-      state.reservations = [];
-
-      if (state.pendingSaveId !== null) {
-        state.favourites.push(state.pendingSaveId);
-        state.pendingSaveId = null;
-        persistFavourites();
-      }
-
-      showToast('Account created! Welcome, ' + name.split(' ')[0] + ' 👋');
-      goScreen(state.prevScreen === 'confirmed' ? 'confirmed' : 'home');
-    } catch(err) {
-      if (err.code === 'auth/email-already-in-use') {
-        showErr('err-su-email', 'An account with this email already exists — please sign in instead.');
-      } else if (err.code === 'auth/weak-password') {
-        showErr('err-su-password', 'Password must be at least 6 characters');
-      } else {
-        showErr('err-su-email', err.message || 'Sign up failed. Please try again.');
-      }
-    }
-  } else {
-    // localStorage fallback
-    const users  = JSON.parse(localStorage.getItem('dn_users') || '[]');
-    const exists = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (exists) {
+  let cred;
+  try {
+    cred = await auth.createUserWithEmailAndPassword(email, password);
+  } catch(err) {
+    if (err.code === 'auth/email-already-in-use') {
       showErr('err-su-email', 'An account with this email already exists — please sign in instead.');
-      return;
+    } else if (err.code === 'auth/weak-password') {
+      showErr('err-su-password', 'Password must be at least 6 characters');
+    } else {
+      showErr('err-su-email', err.message || 'Sign up failed. Please try again.');
     }
-    const user = { name, phone, email, password, savedRestaurants: [] };
-    users.push(user);
-    localStorage.setItem('dn_users', JSON.stringify(users));
-    localStorage.setItem('dn_user',  JSON.stringify(user));
-    state.user       = user;
-    state.favourites = [];
-
-    if (state.pendingSaveId !== null) {
-      state.favourites.push(state.pendingSaveId);
-      state.pendingSaveId = null;
-      persistFavourites();
-    }
-    showToast('Account created! Welcome, ' + name.split(' ')[0] + ' 👋');
-    goScreen(state.prevScreen === 'confirmed' ? 'confirmed' : 'home');
+    return;
   }
+
+  const uid = cred.user.uid;
+  state.user         = { uid, name, phone, email };
+  state.favourites   = [];
+  state.reservations = [];
+
+  if (state.pendingSaveId !== null) {
+    state.favourites.push(state.pendingSaveId);
+    state.pendingSaveId = null;
+  }
+
+  try {
+    await db.collection('users').doc(uid).set({
+      name, phone, email,
+      savedRestaurants: [...state.favourites],
+      reservations: []
+    });
+  } catch(err) {
+    console.error('Failed to create profile in Firestore:', err);
+    showToast('Account created, but saving your profile failed — check your connection');
+  }
+
+  showToast('Account created! Welcome, ' + name.split(' ')[0] + ' 👋');
+  goScreen(state.prevScreen === 'confirmed' ? 'confirmed' : 'home');
 }
 
 async function doSignIn() {
   const email    = document.getElementById('si-email').value.trim();
   const password = document.getElementById('si-password').value;
 
-  if (fbReady()) {
-    try {
-      const cred = await auth.signInWithEmailAndPassword(email, password);
-      const uid  = cred.user.uid;
-      const doc  = await db.collection('users').doc(uid).get();
-      let d = {};
-      if (doc.exists) {
-        d = doc.data();
-      } else {
-        // First sign-in — create the Firestore document
-        await db.collection('users').doc(uid).set({
-          name: '', phone: '', email, savedRestaurants: [], reservations: []
-        });
-      }
-
-      state.user         = { uid, name: d.name || '', phone: d.phone || '', email };
-      state.favourites   = d.savedRestaurants || [];
-      state.reservations = d.reservations || [];
-
-      if (state.pendingSaveId !== null) {
-        if (!state.favourites.includes(state.pendingSaveId)) {
-          state.favourites.push(state.pendingSaveId);
-          persistFavourites();
-        }
-        state.pendingSaveId = null;
-      }
-
-      showToast('Welcome back, ' + (d.name || email).split(' ')[0] + ' 👋');
-      goScreen(state.prevScreen === 'profile' ? 'profile' : 'home');
-    } catch(err) {
-      showErr('err-si', 'Email or password is incorrect');
-    }
-  } else {
-    // localStorage fallback
-    const users = JSON.parse(localStorage.getItem('dn_users') || '[]');
-    const found = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-    if (!found) { showErr('err-si', 'Email or password is incorrect'); return; }
-
-    state.user       = found;
-    state.favourites = found.savedRestaurants || [];
-    localStorage.setItem('dn_user', JSON.stringify(found));
-
-    if (state.pendingSaveId !== null) {
-      if (!state.favourites.includes(state.pendingSaveId)) {
-        state.favourites.push(state.pendingSaveId);
-        persistFavourites();
-      }
-      state.pendingSaveId = null;
-    }
-    showToast('Welcome back, ' + found.name.split(' ')[0] + ' 👋');
-    goScreen(state.prevScreen === 'profile' ? 'profile' : 'home');
+  // Only auth errors mean "wrong email/password" — Firestore problems must not
+  // show that message (that was the bug causing false "incorrect password")
+  let cred;
+  try {
+    cred = await auth.signInWithEmailAndPassword(email, password);
+  } catch(err) {
+    showErr('err-si', 'Email or password is incorrect');
+    return;
   }
+
+  const uid = cred.user.uid;
+  state.user = { uid, name: '', phone: '', email };
+  await loadUserData(uid, email);
+
+  if (state.pendingSaveId !== null) {
+    if (!state.favourites.includes(state.pendingSaveId)) {
+      state.favourites.push(state.pendingSaveId);
+      persistFavourites();
+    }
+    state.pendingSaveId = null;
+  }
+
+  showToast('Welcome back, ' + (state.user.name || email).split(' ')[0] + ' 👋');
+  goScreen(state.prevScreen === 'profile' ? 'profile' : 'home');
 }
 
 async function doSignOut() {
   if (!confirm('Sign out of Dinery?')) return;
-  if (fbReady()) { await auth.signOut(); }
-  else           { localStorage.removeItem('dn_user'); }
+  await auth.signOut();
   state.user         = null;
   state.favourites   = [];
   state.reservations = [];
@@ -368,46 +314,25 @@ async function saveProfile() {
 
   if (!name || !phone || !email) { showToast('Please fill all required fields'); return; }
 
-  if (fbReady() && state.user?.uid) {
-    try {
-      await db.collection('users').doc(state.user.uid).set({ name, phone }, { merge: true });
-      if (password.length >= 6) {
-        try {
-          await auth.currentUser.updatePassword(password);
-        } catch(e) {
-          if (e.code === 'auth/requires-recent-login') {
-            showToast('Sign out and sign back in to change your password.');
-            return;
-          }
+  if (!state.user?.uid) return;
+  try {
+    await db.collection('users').doc(state.user.uid).set({ name, phone }, { merge: true });
+    if (password.length >= 6) {
+      try {
+        await auth.currentUser.updatePassword(password);
+      } catch(e) {
+        if (e.code === 'auth/requires-recent-login') {
+          showToast('Sign out and sign back in to change your password.');
+          return;
         }
       }
-      state.user = { ...state.user, name, phone };
-      showToast('Profile updated ✓');
-      goScreen('profile');
-      renderProfile();
-    } catch(err) {
-      showToast(err.message || 'Update failed. Please try again.');
     }
-  } else {
-    // localStorage fallback
-    const users    = JSON.parse(localStorage.getItem('dn_users') || '[]');
-    const conflict = users.find(u =>
-      u.email.toLowerCase() === email.toLowerCase() &&
-      u.email.toLowerCase() !== state.user.email.toLowerCase()
-    );
-    if (conflict) { showToast('That email is already used by another account'); return; }
-    const updated = {
-      ...state.user, name, phone, email,
-      savedRestaurants: state.user.savedRestaurants || [],
-      ...(password.length >= 6 ? { password } : {}),
-    };
-    const idx = users.findIndex(u => u.email.toLowerCase() === state.user.email.toLowerCase());
-    if (idx !== -1) users[idx] = updated; else users.push(updated);
-    localStorage.setItem('dn_users', JSON.stringify(users));
-    localStorage.setItem('dn_user',  JSON.stringify(updated));
-    state.user = updated;
+    state.user = { ...state.user, name, phone };
     showToast('Profile updated ✓');
     goScreen('profile');
+    renderProfile();
+  } catch(err) {
+    showToast(err.message || 'Update failed. Please try again.');
   }
 }
 
@@ -621,21 +546,13 @@ function toggleFav(id) {
 }
 
 function persistFavourites() {
-  if (!state.user) return;
-  if (fbReady() && state.user.uid) {
-    db.collection('users').doc(state.user.uid).set(
-      { savedRestaurants: [...state.favourites] }, { merge: true }
-    ).catch(e => console.error('persistFavourites failed:', e));
-  } else {
-    state.user.savedRestaurants = [...state.favourites];
-    localStorage.setItem('dn_user', JSON.stringify(state.user));
-    const users = JSON.parse(localStorage.getItem('dn_users') || '[]');
-    const idx   = users.findIndex(u => u.email.toLowerCase() === state.user.email.toLowerCase());
-    if (idx !== -1) {
-      users[idx].savedRestaurants = [...state.favourites];
-      localStorage.setItem('dn_users', JSON.stringify(users));
-    }
-  }
+  if (!state.user?.uid) return;
+  db.collection('users').doc(state.user.uid).set(
+    { savedRestaurants: [...state.favourites] }, { merge: true }
+  ).catch(e => {
+    console.error('persistFavourites failed:', e);
+    showToast('Saving failed — check your connection');
+  });
 }
 
 function updateFavBtn() {
@@ -832,16 +749,16 @@ async function confirmBooking() {
   };
   state.reservations.unshift(booking);
 
-  if (fbReady() && state.user?.uid) {
+  if (state.user?.uid) {
     db.collection('users').doc(state.user.uid).set(
       { reservations: state.reservations }, { merge: true }
     ).catch(e => {
       console.error('Reservation save failed:', e);
-      localStorage.setItem('dn_reservations', JSON.stringify(state.reservations));
+      showToast('Reservation saved locally only — check your connection');
     });
-  } else {
-    localStorage.setItem('dn_reservations', JSON.stringify(state.reservations));
   }
+  // Guests keep reservations in memory for this visit only — they're prompted
+  // to create an account after booking so future bookings sync to the cloud
 
   state.lastBookingName  = name;
   state.lastBookingPhone = phone;
