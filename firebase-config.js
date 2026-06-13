@@ -2,10 +2,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import {
   getAuth, setPersistence, browserLocalPersistence,
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  signOut, onAuthStateChanged, updatePassword
+  signOut, onAuthStateChanged, updatePassword, deleteUser
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc, runTransaction
+  getFirestore, doc, getDoc, setDoc, deleteDoc, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -38,8 +38,14 @@ window.auth = {
   get currentUser() {
     const u = _auth.currentUser;
     return u ? Object.assign(Object.create(u), {
-      updatePassword: (pw) => updatePassword(u, pw)
+      updatePassword:    (pw) => updatePassword(u, pw),
+      deleteCurrentUser: ()   => deleteUser(u),
     }) : null;
+  },
+  deleteCurrentUser: () => {
+    const u = _auth.currentUser;
+    if (!u) throw new Error('No signed-in user');
+    return deleteUser(u);
   },
 };
 
@@ -50,7 +56,8 @@ window.db = {
         const snap = await getDoc(doc(_db, name, id));
         return { exists: snap.exists(), data: () => snap.data() };
       },
-      set: (data, opts) => setDoc(doc(_db, name, id), data, opts || {}),
+      set:    (data, opts) => setDoc(doc(_db, name, id), data, opts || {}),
+      delete: ()           => deleteDoc(doc(_db, name, id)),
     }),
   }),
 };

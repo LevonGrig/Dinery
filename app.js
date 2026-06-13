@@ -378,6 +378,36 @@ async function saveProfile() {
   }
 }
 
+function openDeleteModal() {
+  const m = document.getElementById('delete-account-modal');
+  m.style.display = 'flex';
+}
+
+function closeDeleteModal() {
+  const m = document.getElementById('delete-account-modal');
+  m.style.display = 'none';
+}
+
+async function confirmDeleteAccount() {
+  if (!state.user?.uid) return;
+  closeDeleteModal();
+  try {
+    await db.collection('users').doc(state.user.uid).delete();
+    await auth.deleteCurrentUser();
+    state.user         = null;
+    state.favourites   = [];
+    state.reservations = [];
+    goScreen('home');
+    showToast('Your account has been deleted.');
+  } catch(e) {
+    if (e.code === 'auth/requires-recent-login') {
+      showToast('Please sign out and sign back in, then try again.');
+    } else {
+      showToast(e.message || 'Could not delete account. Please try again.');
+    }
+  }
+}
+
 function populateEditForm() {
   if (!state.user) return;
   document.getElementById('ep-name').value     = state.user.name  || '';
