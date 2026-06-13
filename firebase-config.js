@@ -5,7 +5,7 @@ import {
   signOut, onAuthStateChanged, updatePassword
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc
+  getFirestore, doc, getDoc, setDoc, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -53,4 +53,81 @@ window.db = {
       set: (data, opts) => setDoc(doc(_db, name, id), data, opts || {}),
     }),
   }),
+};
+
+// ────────────────────────────────────────────────────────────────────────────
+//  HALL CAPACITY STORE  (concurrency-safe seat booking)
+//
+//  Each hall+date+time slot is one Firestore document under /halls. A booking
+//  consumes `seats` (= guest count). Reserving and releasing run inside a
+//  Firestore transaction, so two people booking the last tables at the same
+//  instant are serialised: the first commits, the second re-reads the updated
+//  occupancy and is told the hall is full.
+//
+//  Forward-compatible: an admin panel later just edits these /halls docs
+//  (capacity per slot) — no app code changes needed.
+//
+//  Every method fails OPEN (returns ok/unknown) if Firestore is unreachable or
+//  rules block access, so booking still works; the concurrency guard simply
+//  goes inactive until the /halls security rules are published.
+// ────────────────────────────────────────────────────────────────────────────
+window.hallStore = {
+  // Remaining seats for a slot, or null if it can't be determined.
+  // Seeds the doc from `meta` (capacity + base occupied) on first access.
+  async remaining(key, meta) {
+    try {
+      const ref  = doc(_db, 'halls', key);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        await setDoc(ref, { ...meta });
+        return Math.max(0, meta.capacity - meta.occupied);
+      }
+      const d = snap.data();
+      return Math.max(0, d.capacity - d.occupied);
+    } catch (e) {
+      console.warn('hallStore.remaining failed (guard inactive):', e);
+      return null;
+    }
+  },
+
+  // Atomically reserve `seats`. Returns { ok, remaining }.
+  // ok:false means not enough seats left (someone else just took them).
+  async reserve(key, meta, seats) {
+    try {
+      return await runTransaction(_db, async (tx) => {
+        const ref  = doc(_db, 'halls', key);
+        const snap = await tx.get(ref);
+        if (!snap.exists()) {
+          const remaining = meta.capacity - meta.occupied;
+          if (seats > remaining) return { ok: false, remaining };
+          tx.set(ref, { ...meta, occupied: meta.occupied + seats });
+          return { ok: true, remaining: remaining - seats };
+        }
+        const d         = snap.data();
+        const remaining = d.capacity - d.occupied;
+        if (seats > remaining) return { ok: false, remaining };
+        tx.update(ref, { occupied: d.occupied + seats });
+        return { ok: true, remaining: remaining - seats };
+      });
+    } catch (e) {
+      console.warn('hallStore.reserve failed (allowing booking):', e);
+      return { ok: true, remaining: null, fallback: true };
+    }
+  },
+
+  // Atomically free `seats` (on cancel / change). Best-effort.
+  async release(key, seats) {
+    if (!key || !seats) return;
+    try {
+      await runTransaction(_db, async (tx) => {
+        const ref  = doc(_db, 'halls', key);
+        const snap = await tx.get(ref);
+        if (!snap.exists()) return;
+        const d = snap.data();
+        tx.update(ref, { occupied: Math.max(0, d.occupied - seats) });
+      });
+    } catch (e) {
+      console.warn('hallStore.release failed:', e);
+    }
+  },
 };

@@ -131,7 +131,27 @@ let state = {
   user               : null,   // { uid?, name, phone, email }
   pendingSaveId      : null,
   changingBookingRef : null,   // ref of booking being changed (replaced on confirm)
+  maxGuests          : 20,     // cap based on the selected hall's remaining seats
+  selectedHallRemaining : null,// remaining seats in the selected hall (null = unknown)
 };
+
+// ── Hall capacity (concurrency-aware booking) ─────────────────────────────────
+// Default seats + base occupancy per hall for a given date+time slot. An admin
+// panel will later edit the /halls documents directly; these are just the seed
+// values so the feature works before the panel exists.
+const HALL_CAPACITY = {
+  terrace: { capacity: 30, occupied: 9  },  // ~30% occupied
+  main:    { capacity: 40, occupied: 26 },  // ~65% occupied
+  vip:     { capacity: 12, occupied: 10 },  // ~85% occupied — only 2 seats left
+};
+
+function hallKey(restaurantId, hall, date, time) {
+  return `${restaurantId}__${hall}__${date}__${time}`.replace(/:/g, '');
+}
+function hallMeta(restaurantId, hall, date, time) {
+  const base = HALL_CAPACITY[hall] || { capacity: 30, occupied: 0 };
+  return { restaurantId, hall, date, time, capacity: base.capacity, occupied: base.occupied };
+}
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -225,6 +245,7 @@ function navigate(id, isBack) {
   if (id === 'reservations') { state.changingBookingRef = null; renderReservations(); }
   if (id === 'profile')      renderProfile();
   if (id === 'saved')        renderSaved();
+  if (id === 'book-guests')  initGuests();
   if (id === 'book-details') populateSummary();
   if (id === 'edit-profile') populateEditForm();
 }
@@ -652,6 +673,8 @@ function startBooking() {
   state.selectedTime    = null;
   state.selectedSeating = null;
   state.guestCount      = 2;
+  state.maxGuests       = 20;
+  state.selectedHallRemaining = null;
   document.getElementById('bookingRestName').textContent = state.selectedRestaurant.name;
   document.getElementById('guestCount').textContent      = '2';
   buildDateGrid();
@@ -705,18 +728,77 @@ function checkDateTimeReady() {
   document.getElementById('btnDateTime').disabled = !(state.selectedDate && state.selectedTime);
 }
 
-function selectSeat(type) {
+async function selectSeat(type) {
   document.querySelectorAll('.seating-option').forEach(el => el.classList.remove('active'));
-  document.getElementById('seat-' + type)?.classList.add('active');
+  const card = document.getElementById('seat-' + type);
+  card?.classList.add('active');
   state.selectedSeating = type;
-  document.getElementById('btnSeating').disabled = false;
+
+  const r   = state.selectedRestaurant;
+  const btn = document.getElementById('btnSeating');
+  btn.disabled = true;
+
+  // Check live remaining capacity for this hall at the chosen date/time
+  let remaining = null;
+  if (window.hallStore && r && state.selectedDate && state.selectedTime) {
+    const key  = hallKey(r.id, type, state.selectedDate, state.selectedTime);
+    const meta = hallMeta(r.id, type, state.selectedDate, state.selectedTime);
+    remaining  = await window.hallStore.remaining(key, meta);
+  }
+
+  // Ignore a stale result if the user tapped a different hall meanwhile
+  if (state.selectedSeating !== type) return;
+
+  state.selectedHallRemaining = remaining;
+  state.maxGuests = (remaining == null) ? 20 : Math.min(20, remaining);
+
+  // Reflect real availability on the card's occupancy label
+  const label = card?.querySelector('.occupancy-label');
+  if (remaining != null && label) {
+    label.textContent = remaining <= 0
+      ? 'Fully booked for this time'
+      : `${remaining} seat${remaining === 1 ? '' : 's'} available`;
+  }
+
+  if (remaining != null && remaining <= 0) {
+    showToast(`${SEATING_LABELS[type]} is fully booked at ${state.selectedTime}. Please pick another hall.`);
+    state.selectedSeating = null;
+    card?.classList.remove('active');
+    return;
+  }
+  btn.disabled = false;
 }
 
-function changeGuests(delta) {
-  state.guestCount = Math.max(1, Math.min(20, state.guestCount + delta));
+// Prepare the guest counter, capping it to the selected hall's remaining seats.
+function initGuests() {
+  const max = state.maxGuests || 20;
+  if (state.guestCount > max) state.guestCount = Math.max(1, max);
   document.getElementById('guestCount').textContent = state.guestCount;
   document.getElementById('guestLabel').textContent = state.guestCount === 1 ? 'guest' : 'guests';
   document.getElementById('btnMinus').disabled = state.guestCount <= 1;
+  const plus = document.getElementById('btnPlus');
+  if (plus) plus.disabled = state.guestCount >= max;
+
+  const note = document.getElementById('capacityNote');
+  if (note) {
+    const rem = state.selectedHallRemaining;
+    if (rem != null && rem <= 20) {
+      note.textContent = `Only ${rem} seat${rem === 1 ? '' : 's'} left in ${SEATING_LABELS[state.selectedSeating]} — party size is capped accordingly.`;
+      note.style.display = 'block';
+    } else {
+      note.style.display = 'none';
+    }
+  }
+}
+
+function changeGuests(delta) {
+  const max = state.maxGuests || 20;
+  state.guestCount = Math.max(1, Math.min(max, state.guestCount + delta));
+  document.getElementById('guestCount').textContent = state.guestCount;
+  document.getElementById('guestLabel').textContent = state.guestCount === 1 ? 'guest' : 'guests';
+  document.getElementById('btnMinus').disabled = state.guestCount <= 1;
+  const plus = document.getElementById('btnPlus');
+  if (plus) plus.disabled = state.guestCount >= max;
   document.getElementById('groupNote').style.display = state.guestCount >= 7 ? 'block' : 'none';
 }
 
@@ -763,12 +845,54 @@ async function confirmBooking() {
   const dateStr  = dateObj.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'long' });
   const ref      = 'DN' + Math.random().toString(36).substr(2,6).toUpperCase();
 
+  const hall  = state.selectedSeating;
+  const seats = state.guestCount;
+  const key   = hallKey(r.id, hall, state.selectedDate, state.selectedTime);
+  const meta  = hallMeta(r.id, hall, state.selectedDate, state.selectedTime);
+
+  // The booking being replaced (change-booking flow), if any
+  const oldBooking = state.changingBookingRef
+    ? state.reservations.find(b => b.ref === state.changingBookingRef)
+    : null;
+
+  // Atomically claim the seats. If we're changing an existing booking, free its
+  // old seats first so moving within the same hall doesn't false-trigger "full";
+  // restore them if the new claim then fails.
+  if (window.hallStore) {
+    const btn = document.getElementById('btnConfirm');
+    if (btn) btn.disabled = true;
+
+    if (oldBooking?.hallKey) {
+      await window.hallStore.release(oldBooking.hallKey, oldBooking.seats || oldBooking.guests || 1);
+    }
+
+    const res = await window.hallStore.reserve(key, meta, seats);
+    if (!res.ok) {
+      // Someone else took the last seats first — re-claim the old ones and bail
+      if (oldBooking?.hallKey) {
+        const oldMeta = hallMeta(oldBooking.restaurantId ?? r.id, oldBooking.hall || hall,
+                                 oldBooking.slotDate || state.selectedDate, oldBooking.slotTime || state.selectedTime);
+        await window.hallStore.reserve(oldBooking.hallKey, oldMeta, oldBooking.seats || oldBooking.guests || 1);
+      }
+      const left = res.remaining;
+      showToast(left > 0
+        ? `${SEATING_LABELS[hall]} only has ${left} seat${left === 1 ? '' : 's'} left — reduce your party size.`
+        : `${SEATING_LABELS[hall]} just filled up. Please choose another hall.`);
+      if (btn) btn.disabled = false;
+      goScreen('book-seating');
+      return;
+    }
+  }
+
   const booking = {
     ref, restaurant:r.name, img:r.img, date:dateStr,
-    time:state.selectedTime, seating:SEATING_LABELS[state.selectedSeating],
-    guests:state.guestCount, name, phone, requests, ts:Date.now(),
+    time:state.selectedTime, seating:SEATING_LABELS[hall],
+    guests:seats, name, phone, requests, ts:Date.now(),
+    // capacity bookkeeping — lets us release seats on cancel/change
+    hallKey: key, seats, hall, restaurantId: r.id,
+    slotDate: state.selectedDate, slotTime: state.selectedTime,
   };
-  // If changing an existing booking, remove the old one first
+  // If changing an existing booking, remove the old one (its seats were freed above)
   if (state.changingBookingRef) {
     state.reservations = state.reservations.filter(b => b.ref !== state.changingBookingRef);
     state.changingBookingRef = null;
@@ -866,6 +990,8 @@ function changeBooking(ref) {
   state.selectedTime        = null;
   state.selectedSeating     = null;
   state.guestCount          = b.guests || 2;
+  state.maxGuests           = 20;
+  state.selectedHallRemaining = null;
 
   document.getElementById('bookingRestName').textContent = restaurant.name;
   document.getElementById('guestCount').textContent      = state.guestCount;
@@ -877,11 +1003,16 @@ function changeBooking(ref) {
   goScreen('book-datetime');
 }
 
-// Cancel a booking by its reference, persist to Firestore, return to the list.
-function cancelReservation(ref) {
+// Cancel a booking by its reference, free its seats, persist, return to list.
+async function cancelReservation(ref) {
   const booking = state.reservations.find(b => b.ref === ref);
   if (!booking) return;
   if (!confirm(`Cancel your reservation at ${booking.restaurant} on ${booking.date} at ${booking.time}?`)) return;
+
+  // Release the held seats back to the hall so others can book them
+  if (window.hallStore && booking.hallKey) {
+    await window.hallStore.release(booking.hallKey, booking.seats || booking.guests || 1);
+  }
 
   state.reservations = state.reservations.filter(b => b.ref !== ref);
   persistReservations();

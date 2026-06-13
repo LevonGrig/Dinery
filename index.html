@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Dinery — Fine Dining Reservations</title>
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
 <div id="app">
@@ -330,9 +330,10 @@
       <div class="guest-counter">
         <button class="counter-btn" id="btnMinus" onclick="changeGuests(-1)">−</button>
         <div class="counter-val" id="guestCount">2</div>
-        <button class="counter-btn" onclick="changeGuests(1)">+</button>
+        <button class="counter-btn" id="btnPlus" onclick="changeGuests(1)">+</button>
       </div>
       <div class="counter-sub" id="guestLabel">guests</div>
+      <div class="group-note" id="capacityNote" style="display:none"></div>
       <div class="group-note" id="groupNote" style="display:none">
         🎉 For groups of 7 or more, our team will personally reach out to arrange the perfect setup.
       </div>
@@ -602,7 +603,7 @@
 </div>
 
 <!-- Firebase (modular SDK, loaded as a module so it can target the named database) -->
-<script type="module" src="firebase-config.js?v=7"></script>
-<script src="app.js?v=7"></script>
+<script type="module" src="firebase-config.js?v=8"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>
