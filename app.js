@@ -392,6 +392,17 @@ async function confirmDeleteAccount() {
   if (!state.user?.uid) return;
   closeDeleteModal();
   try {
+    // Free every held seat back to its hall so the space becomes available
+    // to others — same release path the Cancel button uses, run for all
+    // of this account's reservations before the account is removed.
+    if (window.hallStore) {
+      for (const b of state.reservations) {
+        if (b.hallKey) {
+          await window.hallStore.release(b.hallKey, b.seats || b.guests || 1);
+        }
+      }
+    }
+
     await db.collection('users').doc(state.user.uid).delete();
     await auth.deleteCurrentUser();
     state.user         = null;
