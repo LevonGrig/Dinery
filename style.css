@@ -577,11 +577,14 @@
       #nearbyList, #searchResults {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
+        grid-auto-rows: min-content;
         padding: 0 20px;
         column-gap: 14px;
+        align-content: start;
+        align-items: start;
       }
       #nearbyList .list-card,
-      #searchResults .list-card { margin: 0 0 14px 0; }
+      #searchResults .list-card { margin: 0 0 14px 0; align-self: start; }
       #nearbyList .empty-state,
       #searchResults .empty-state { grid-column: 1 / -1; }
       .hero-card { height: 280px; }
@@ -664,11 +667,14 @@
       #nearbyList, #searchResults {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
+        grid-auto-rows: min-content;
         padding: 0 40px;
         column-gap: 16px;
+        align-content: start;
+        align-items: start;
       }
       #nearbyList .list-card,
-      #searchResults .list-card { margin: 0 0 16px 0; }
+      #searchResults .list-card { margin: 0 0 16px 0; align-self: start; }
       #nearbyList .empty-state,
       #searchResults .empty-state { grid-column: 1 / -1; }
 
