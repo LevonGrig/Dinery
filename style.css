@@ -668,13 +668,17 @@
       #reservationsList {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
+        grid-auto-rows: min-content;
         padding: 0 40px;
         column-gap: 16px;
         align-content: start;
         align-items: start;
       }
       #reservationsList > div:first-child { grid-column: 1 / -1; }
-      #reservationsList .list-card { margin: 0 0 16px 0; }
+      #reservationsList .list-card {
+        margin: 0 0 16px 0;
+        align-self: start;
+      }
       #reservationsList .empty-state { grid-column: 1 / -1; }
 
       /* ── Narrow centered flows (booking, auth) ── */
