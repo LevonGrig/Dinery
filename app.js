@@ -129,6 +129,7 @@ let state = {
   searchFilter       : 'All',
   user               : null,   // { uid?, name, phone, email }
   pendingSaveId      : null,
+  changingBookingRef : null,   // ref of booking being changed (replaced on confirm)
 };
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
@@ -197,7 +198,7 @@ function goScreen(id) {
   }
 
   if (id === 'home')         renderHome();
-  if (id === 'reservations') renderReservations();
+  if (id === 'reservations') { state.changingBookingRef = null; renderReservations(); }
   if (id === 'profile')      renderProfile();
   if (id === 'saved')        renderSaved();
   if (id === 'book-details') populateSummary();
@@ -747,6 +748,11 @@ async function confirmBooking() {
     time:state.selectedTime, seating:SEATING_LABELS[state.selectedSeating],
     guests:state.guestCount, name, phone, requests, ts:Date.now(),
   };
+  // If changing an existing booking, remove the old one first
+  if (state.changingBookingRef) {
+    state.reservations = state.reservations.filter(b => b.ref !== state.changingBookingRef);
+    state.changingBookingRef = null;
+  }
   state.reservations.unshift(booking);
   persistReservations();
   // Guests keep reservations in memory for this visit only — they're prompted
@@ -823,7 +829,32 @@ function openReservation(ref) {
   }
 
   document.getElementById('resCancelBtn').onclick = () => cancelReservation(ref);
+  document.getElementById('resChangeBtn').onclick  = () => changeBooking(ref);
   goScreen('reservation-detail');
+}
+
+// Start a new booking for the same restaurant, then swap it for the old one on confirm.
+function changeBooking(ref) {
+  const b = state.reservations.find(x => x.ref === ref);
+  if (!b) return;
+  const restaurant = RESTAURANTS.find(r => r.name === b.restaurant);
+  if (!restaurant) { showToast('Restaurant no longer available'); return; }
+
+  state.changingBookingRef  = ref;
+  state.selectedRestaurant  = restaurant;
+  state.selectedDate        = null;
+  state.selectedTime        = null;
+  state.selectedSeating     = null;
+  state.guestCount          = b.guests || 2;
+
+  document.getElementById('bookingRestName').textContent = restaurant.name;
+  document.getElementById('guestCount').textContent      = state.guestCount;
+  buildDateGrid();
+  buildTimeGrid();
+  document.getElementById('btnDateTime').disabled = true;
+  document.getElementById('btnSeating').disabled  = true;
+  document.querySelectorAll('.seating-option').forEach(el => el.classList.remove('active'));
+  goScreen('book-datetime');
 }
 
 // Cancel a booking by its reference, persist to Firestore, return to the list.

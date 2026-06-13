@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Dinery — Fine Dining Reservations</title>
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 <div id="app">
@@ -451,7 +451,10 @@
       </div>
     </div>
     <div class="cta-wrap">
-      <button class="btn-cancel-full" id="resCancelBtn">Cancel Reservation</button>
+      <div style="display:flex;gap:12px">
+        <button class="btn-cancel-full" id="resCancelBtn" style="flex:1">Cancel</button>
+        <button class="btn-primary" id="resChangeBtn" style="flex:2">Change Booking</button>
+      </div>
     </div>
   </div>
 
@@ -599,7 +602,7 @@
 </div>
 
 <!-- Firebase (modular SDK, loaded as a module so it can target the named database) -->
-<script type="module" src="firebase-config.js?v=5"></script>
-<script src="app.js?v=5"></script>
+<script type="module" src="firebase-config.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
