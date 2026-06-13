@@ -748,15 +748,7 @@ async function confirmBooking() {
     guests:state.guestCount, name, phone, requests, ts:Date.now(),
   };
   state.reservations.unshift(booking);
-
-  if (state.user?.uid) {
-    db.collection('users').doc(state.user.uid).set(
-      { reservations: state.reservations }, { merge: true }
-    ).catch(e => {
-      console.error('Reservation save failed:', e);
-      showToast('Reservation saved locally only — check your connection');
-    });
-  }
+  persistReservations();
   // Guests keep reservations in memory for this visit only — they're prompted
   // to create an account after booking so future bookings sync to the cloud
 
@@ -795,16 +787,40 @@ function renderReservations() {
   el.innerHTML =
     `<div style="padding:20px 20px 8px"><div class="section-label">My Reservations</div></div>` +
     state.reservations.map(b => `
-      <div class="list-card" style="cursor:default;margin-bottom:14px">
+      <div class="list-card reservation-card" style="cursor:default;margin-bottom:14px">
         <img src="${b.img}" alt="${b.restaurant}">
         <div class="info">
           <h3>${b.restaurant}</h3>
           <div class="sub">${b.date} · ${b.time}</div>
           <div class="sub">${b.seating} · ${b.guests} guest${b.guests > 1 ? 's' : ''}</div>
           <div style="margin-top:6px;font-size:11px;color:var(--gold);letter-spacing:1px">Ref: ${b.ref}</div>
+          <button class="btn-cancel-booking" onclick="cancelReservation('${b.ref}')">Cancel reservation</button>
         </div>
       </div>`
     ).join('') + '<div style="height:20px"></div>';
+}
+
+// Cancel a booking by its reference, persist to Firestore, and re-render.
+function cancelReservation(ref) {
+  const booking = state.reservations.find(b => b.ref === ref);
+  if (!booking) return;
+  if (!confirm(`Cancel your reservation at ${booking.restaurant} on ${booking.date} at ${booking.time}?`)) return;
+
+  state.reservations = state.reservations.filter(b => b.ref !== ref);
+  persistReservations();
+  renderReservations();
+  showToast('Reservation cancelled');
+}
+
+// Save the current reservations array to the signed-in user's Firestore doc.
+function persistReservations() {
+  if (!state.user?.uid) return;
+  db.collection('users').doc(state.user.uid).set(
+    { reservations: state.reservations }, { merge: true }
+  ).catch(e => {
+    console.error('Reservation update failed:', e);
+    showToast('Update failed — check your connection');
+  });
 }
 
 // ── Save-credentials modal ────────────────────────────────────────────────────
