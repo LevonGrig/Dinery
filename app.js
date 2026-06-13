@@ -119,6 +119,7 @@ const BOOKING_SCREENS = ['book-datetime','book-seating','book-guests','book-deta
 let state = {
   currentScreen      : 'home',
   prevScreen         : null,
+  history            : [],          // navigation stack for the back button
   selectedRestaurant : null,
   selectedDate       : null,
   selectedTime       : null,
@@ -182,9 +183,32 @@ async function loadUserData(uid, email) {
 }
 
 // ── Navigation ────────────────────────────────────────────────────────────────
-function goScreen(id) {
+// Top-level tabs — reaching one starts a fresh history (no "back" expected).
+const ROOT_SCREENS = ['home','search','reservations','profile'];
+
+function goScreen(id) { navigate(id, false); }
+
+// goBack pops the real navigation history so you return to wherever you
+// actually came from (e.g. mid-booking → back → the restaurant list),
+// instead of bouncing between the last two screens. fallback is only used
+// when there's no history (e.g. deep-linked entry).
+function goBack(fallback) {
+  const target = state.history.length ? state.history.pop() : fallback;
+  navigate(target, true);
+}
+
+function navigate(id, isBack) {
   document.getElementById('screen-' + state.currentScreen)?.classList.remove('active');
   document.getElementById('screen-' + id)?.classList.add('active');
+
+  if (!isBack) {
+    if (ROOT_SCREENS.includes(id)) {
+      state.history = [];                       // fresh root context
+    } else if (state.currentScreen && state.currentScreen !== id) {
+      state.history.push(state.currentScreen);  // remember where we came from
+    }
+  }
+
   state.prevScreen    = state.currentScreen;
   state.currentScreen = id;
 
@@ -203,10 +227,6 @@ function goScreen(id) {
   if (id === 'saved')        renderSaved();
   if (id === 'book-details') populateSummary();
   if (id === 'edit-profile') populateEditForm();
-}
-
-function goBack(fallback) {
-  goScreen(state.prevScreen || fallback);
 }
 
 function goSearch() {
