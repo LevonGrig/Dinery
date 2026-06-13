@@ -670,6 +670,8 @@
         grid-template-columns: repeat(3, 1fr);
         padding: 0 40px;
         column-gap: 16px;
+        align-content: start;
+        align-items: start;
       }
       #reservationsList > div:first-child { grid-column: 1 / -1; }
       #reservationsList .list-card { margin: 0 0 16px 0; }
