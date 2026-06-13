@@ -253,6 +253,14 @@
     }
     .btn-cancel-booking:active { background: rgba(217,68,68,0.1); }
 
+    .btn-cancel-full {
+      width: 100%; background: none; color: var(--danger);
+      border: 1.5px solid var(--danger); border-radius: 50px;
+      padding: 15px; font-size: 15px; font-weight: 600;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .btn-cancel-full:active { background: rgba(217,68,68,0.1); }
+
     /* ── Save-credentials bottom sheet ── */
     #save-modal {
       display: none;

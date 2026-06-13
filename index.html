@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Dinery — Fine Dining Reservations</title>
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <div id="app">
@@ -425,6 +425,37 @@
   </div>
 
   <!-- ══════════════════════════════
+       RESERVATION DETAIL
+  ══════════════════════════════ -->
+  <div id="screen-reservation-detail" class="screen">
+    <div class="detail-hero">
+      <img id="resDetailImg" src="" alt="">
+      <div class="overlay"></div>
+      <button class="back-btn" onclick="goScreen('reservations')">&#8592;</button>
+    </div>
+    <div class="scroll-content">
+      <div class="detail-body">
+        <h1 id="resDetailName" style="margin-bottom:4px"></h1>
+        <div class="cuisine-tag" id="resDetailStatus" style="margin-bottom:18px">Confirmed</div>
+        <div class="booking-summary">
+          <h3>Reservation Details</h3>
+          <div class="summary-row"><span>Date</span><span class="val" id="resDetailDate"></span></div>
+          <div class="summary-row" style="margin-top:10px"><span>Time</span><span class="val" id="resDetailTime"></span></div>
+          <div class="summary-row" style="margin-top:10px"><span>Seating</span><span class="val" id="resDetailSeating"></span></div>
+          <div class="summary-row" style="margin-top:10px"><span>Guests</span><span class="val" id="resDetailGuests"></span></div>
+          <div class="summary-row" style="margin-top:10px"><span>Name</span><span class="val" id="resDetailGuestName"></span></div>
+          <div class="summary-row" style="margin-top:10px"><span>Phone</span><span class="val" id="resDetailPhone"></span></div>
+          <div class="summary-row" id="resDetailRequestsRow" style="margin-top:10px;display:none"><span>Requests</span><span class="val" id="resDetailRequests"></span></div>
+          <div class="summary-row" style="margin-top:10px"><span>Ref</span><span class="val" id="resDetailRef" style="color:var(--gold);letter-spacing:1px"></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="cta-wrap">
+      <button class="btn-cancel-full" id="resCancelBtn">Cancel Reservation</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
        PROFILE
   ══════════════════════════════ -->
   <div id="screen-profile" class="screen">
@@ -568,7 +599,7 @@
 </div>
 
 <!-- Firebase (modular SDK, loaded as a module so it can target the named database) -->
-<script type="module" src="firebase-config.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script type="module" src="firebase-config.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

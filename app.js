@@ -787,20 +787,46 @@ function renderReservations() {
   el.innerHTML =
     `<div style="padding:20px 20px 8px"><div class="section-label">My Reservations</div></div>` +
     state.reservations.map(b => `
-      <div class="list-card reservation-card" style="cursor:default;margin-bottom:14px">
+      <div class="list-card reservation-card" onclick="openReservation('${b.ref}')">
         <img src="${b.img}" alt="${b.restaurant}">
         <div class="info">
           <h3>${b.restaurant}</h3>
           <div class="sub">${b.date} · ${b.time}</div>
           <div class="sub">${b.seating} · ${b.guests} guest${b.guests > 1 ? 's' : ''}</div>
           <div style="margin-top:6px;font-size:11px;color:var(--gold);letter-spacing:1px">Ref: ${b.ref}</div>
-          <button class="btn-cancel-booking" onclick="cancelReservation('${b.ref}')">Cancel reservation</button>
         </div>
+        <span class="arrow" style="align-self:center;padding-right:14px;color:var(--gray)">›</span>
       </div>`
     ).join('') + '<div style="height:20px"></div>';
 }
 
-// Cancel a booking by its reference, persist to Firestore, and re-render.
+// Open the full reservation detail screen for a given booking reference.
+function openReservation(ref) {
+  const b = state.reservations.find(x => x.ref === ref);
+  if (!b) return;
+  document.getElementById('resDetailImg').src           = b.img;
+  document.getElementById('resDetailName').textContent  = b.restaurant;
+  document.getElementById('resDetailDate').textContent  = b.date;
+  document.getElementById('resDetailTime').textContent  = b.time;
+  document.getElementById('resDetailSeating').textContent = b.seating;
+  document.getElementById('resDetailGuests').textContent  = `${b.guests} guest${b.guests > 1 ? 's' : ''}`;
+  document.getElementById('resDetailGuestName').textContent = b.name || '—';
+  document.getElementById('resDetailPhone').textContent     = b.phone || '—';
+  document.getElementById('resDetailRef').textContent       = b.ref;
+
+  const reqRow = document.getElementById('resDetailRequestsRow');
+  if (b.requests) {
+    document.getElementById('resDetailRequests').textContent = b.requests;
+    reqRow.style.display = '';
+  } else {
+    reqRow.style.display = 'none';
+  }
+
+  document.getElementById('resCancelBtn').onclick = () => cancelReservation(ref);
+  goScreen('reservation-detail');
+}
+
+// Cancel a booking by its reference, persist to Firestore, return to the list.
 function cancelReservation(ref) {
   const booking = state.reservations.find(b => b.ref === ref);
   if (!booking) return;
@@ -808,8 +834,8 @@ function cancelReservation(ref) {
 
   state.reservations = state.reservations.filter(b => b.ref !== ref);
   persistReservations();
-  renderReservations();
   showToast('Reservation cancelled');
+  goScreen('reservations');
 }
 
 // Save the current reservations array to the signed-in user's Firestore doc.
