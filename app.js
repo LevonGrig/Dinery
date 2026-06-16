@@ -121,7 +121,7 @@ const TIMES = [
 const EMAILJS_CONFIG = {
   publicKey  : 'SxFnV_gA01a9IzeMG',
   serviceId  : 'service_d02ko6t',
-  templateId : 'template_671f01i',
+  templateId : 'template_9lq68wz',
 };
 
 function buildCancellationEmailHTML(booking, restaurant, userName) {
