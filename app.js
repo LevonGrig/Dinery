@@ -112,6 +112,174 @@ const TIMES = [
   { t:"21:00", avail:true  }, { t:"21:30", avail:true  },
 ];
 
+// ── Email (EmailJS) ──────────────────────────────────────────────────────────
+// Sign up free at https://www.emailjs.com  then fill in the three values below.
+// In your EmailJS dashboard create one template with:
+//   To email : {{to_email}}
+//   Subject  : {{subject}}
+//   Body     : choose HTML and put only  {{{html_content}}}  in the body field.
+const EMAILJS_CONFIG = {
+  publicKey  : 'YOUR_EMAILJS_PUBLIC_KEY',
+  serviceId  : 'YOUR_EMAILJS_SERVICE_ID',
+  templateId : 'YOUR_EMAILJS_TEMPLATE_ID',
+};
+
+function buildCancellationEmailHTML(booking, restaurant, userName) {
+  const phone    = restaurant?.phone || 'N/A';
+  const imgUrl   = restaurant?.img   || '';
+  const restName = booking.restaurant || 'your restaurant';
+  const date     = booking.date        || '—';
+  const time     = booking.time        || '—';
+  const guests   = booking.guests      || '—';
+  const ref      = booking.ref         || '—';
+  const name     = userName            || 'Guest';
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reservation Cancelled – Dinery</title></head>
+<body style="margin:0;padding:0;background:#FAF4E8;font-family:Georgia,'Times New Roman',serif;">
+<div style="display:none;font-size:1px;color:#FAF4E8;max-height:0;overflow:hidden;">
+Your reservation at ${restName} has been cancelled. We hope to host you another time.</div>
+<center style="width:100%;background:#FAF4E8;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px;margin:0 auto;">
+  <tr><td style="background:#391212;padding:28px 36px 18px 36px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+      <td align="left"><span style="font-family:Georgia,serif;font-size:22px;letter-spacing:2px;color:#FAF4E8;font-weight:bold;">DINERY</span></td>
+      <td align="right"><span style="font-family:Georgia,serif;font-size:11px;letter-spacing:3px;color:#FAF4E8;text-transform:uppercase;">Yerevan</span></td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="background:#391212;padding:0 36px 24px 36px;">
+    <div style="border-top:1.5px solid #FAF4E8;line-height:1px;font-size:1px;">&nbsp;</div>
+  </td></tr>
+  <tr><td align="center" style="background:#FDF8F0;padding:40px 36px;">
+    <h1 style="margin:0 0 16px 0;font-family:Georgia,serif;font-size:34px;color:#391212;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">
+      Your reservation has been cancelled</h1>
+    <p style="margin:0;font-size:15px;line-height:1.7;color:#5a4a42;">
+      Hi ${name}, your reservation has been successfully cancelled.<br>We hope to host you another time.</p>
+  </td></tr>
+  ${imgUrl ? `<tr><td style="background:#fff;padding:0;line-height:0;">
+    <img src="${imgUrl}" width="600" alt="${restName}" style="width:100%;max-width:600px;height:220px;object-fit:cover;display:block;">
+  </td></tr>` : ''}
+  <tr><td style="background:#fff;padding:32px 36px 40px 36px;">
+    <p style="margin:0 0 16px 0;font-size:11px;letter-spacing:3px;color:#391212;text-transform:uppercase;font-weight:bold;">Cancelled Reservation</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+      <tr>
+        <td width="50%" valign="top" style="padding-bottom:14px;">
+          <p style="margin:0;font-size:14px;color:#391212;"><strong>Restaurant</strong><br>
+          <span style="color:#5a4a42;">${restName}</span></p>
+        </td>
+        <td width="50%" valign="top" style="padding-bottom:14px;">
+          <p style="margin:0;font-size:14px;color:#391212;"><strong>Date</strong><br>
+          <span style="color:#5a4a42;">${date}</span></p>
+        </td>
+      </tr>
+      <tr>
+        <td width="50%" valign="top" style="padding-bottom:14px;">
+          <p style="margin:0;font-size:14px;color:#391212;"><strong>Time</strong><br>
+          <span style="color:#5a4a42;">${time}</span></p>
+        </td>
+        <td width="50%" valign="top" style="padding-bottom:14px;">
+          <p style="margin:0;font-size:14px;color:#391212;"><strong>Party Size</strong><br>
+          <span style="color:#5a4a42;">${guests} guest${guests === 1 ? '' : 's'}</span></p>
+        </td>
+      </tr>
+      <tr>
+        <td width="50%" valign="top">
+          <p style="margin:0;font-size:14px;color:#391212;"><strong>Reservation Code</strong><br>
+          <span style="color:#5a4a42;">${ref}</span></p>
+        </td>
+        <td width="50%" valign="top"></td>
+      </tr>
+    </table>
+  </td></tr>
+  <tr><td style="background:#fff;padding:0 36px;">
+    <div style="border-top:1.5px solid #391212;line-height:1px;font-size:1px;">&nbsp;</div>
+  </td></tr>
+  <tr><td align="center" style="background:#fff;padding:40px 36px 10px 36px;">
+    <p style="margin:0 0 4px 0;font-family:Georgia,serif;font-size:11px;letter-spacing:3px;color:#391212;text-transform:uppercase;font-weight:bold;">What's Next</p>
+    <h2 style="margin:0;font-family:Georgia,serif;font-size:24px;color:#391212;font-weight:bold;">Ready when you are</h2>
+  </td></tr>
+  <tr><td align="center" style="background:#fff;padding:28px 36px 40px 36px;">
+    <p style="margin:0;font-size:14px;color:#5a4a42;line-height:1.7;max-width:440px;margin-left:auto;margin-right:auto;">
+      Changed your mind, or just looking for the next great table? Browse restaurants and book whenever you're ready.</p>
+  </td></tr>
+  <tr><td style="background:#FAF4E8;padding:40px 36px;">
+    <a href="https://levongrig.github.io/Dinery/" target="_blank"
+       style="display:block;background:#391212;color:#FAF4E8;font-family:Georgia,serif;font-size:14px;letter-spacing:2px;font-weight:bold;text-decoration:none;padding:18px 0;border-radius:3px;text-align:center;text-transform:uppercase;">
+      Browse Restaurants</a>
+  </td></tr>
+  <tr><td style="background:#FAF4E8;padding:0 36px;">
+    <div style="border-top:1.5px solid #391212;line-height:1px;font-size:1px;">&nbsp;</div>
+  </td></tr>
+  <tr><td align="left" style="background:#FAF4E8;padding:32px 36px;">
+    <p style="margin:0 0 14px 0;font-size:11px;letter-spacing:3px;color:#391212;text-transform:uppercase;font-weight:bold;">Important Things to Know</p>
+    <p style="margin:0 0 8px 0;font-size:13px;color:#5a4a42;line-height:1.6;">• No charges were made — there's nothing further you need to do.</p>
+    <p style="margin:0 0 8px 0;font-size:13px;color:#5a4a42;line-height:1.6;">• Cancelled this by mistake? You can make a new reservation anytime through the app.</p>
+    <p style="margin:0;font-size:13px;color:#5a4a42;line-height:1.6;">• We may contact you about this cancellation, so please ensure your email and phone number are up to date.</p>
+  </td></tr>
+  <tr><td style="background:#FAF4E8;padding:0 36px;">
+    <div style="border-top:1.5px solid #391212;line-height:1px;font-size:1px;">&nbsp;</div>
+  </td></tr>
+  <tr><td align="left" style="background:#FAF4E8;padding:32px 36px;">
+    <p style="margin:0 0 10px 0;font-size:11px;letter-spacing:3px;color:#391212;text-transform:uppercase;font-weight:bold;">Protect Your Data</p>
+    <p style="margin:0;font-size:13px;color:#5a4a42;line-height:1.6;">Dinery will never contact you asking for your password, payment details, or other personal information. If you receive a message like this, please contact us immediately.</p>
+  </td></tr>
+  <tr><td align="center" style="background:#FAF4E8;padding:0 36px 40px 36px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1.5px solid #391212;border-radius:6px;">
+      <tr><td align="center" style="padding:24px 22px;">
+        <p style="margin:0 0 6px 0;font-size:11px;letter-spacing:3px;color:#391212;text-transform:uppercase;font-weight:bold;">Need Help?</p>
+        <p style="margin:0 0 4px 0;font-size:14px;color:#5a4a42;line-height:1.6;">
+          Contact the restaurant directly at <a href="tel:${phone}" style="color:#391212;text-decoration:underline;">${phone}</a></p>
+        <p style="margin:0;font-size:14px;color:#5a4a42;line-height:1.6;">
+          Or reach Dinery support at <a href="mailto:support@dinery.am" style="color:#391212;text-decoration:underline;">support@dinery.am</a></p>
+      </td></tr>
+    </table>
+  </td></tr>
+  <tr><td style="background:#FDF8F0;padding:32px 36px;">
+    <div style="border-top:1.5px solid #391212;line-height:1px;font-size:1px;margin-bottom:24px;">&nbsp;</div>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+      <td align="left" valign="middle">
+        <p style="margin:0 0 4px 0;font-size:11px;color:#8a7a6f;letter-spacing:1px;">© 2026 DINERY</p>
+        <p style="margin:0;font-size:11px;color:#8a7a6f;letter-spacing:1px;">YEREVAN, ARMENIA</p>
+      </td>
+    </tr></table>
+    <p style="margin:24px 0 0 0;font-size:10px;color:#a89a8e;letter-spacing:1px;">
+      <a href="#" style="color:#a89a8e;text-decoration:underline;">Unsubscribe</a>
+      &nbsp;|&nbsp;<a href="#" style="color:#a89a8e;text-decoration:underline;">Privacy Policy</a>
+      &nbsp;|&nbsp;<a href="#" style="color:#a89a8e;text-decoration:underline;">Terms of Service</a>
+    </p>
+  </td></tr>
+</table>
+</center>
+</body></html>`;
+}
+
+async function sendCancellationEmail(booking) {
+  if (!state.user?.email) return;
+  if (EMAILJS_CONFIG.publicKey === 'YOUR_EMAILJS_PUBLIC_KEY') return; // not configured yet
+  if (typeof emailjs === 'undefined') return;
+
+  const restaurant = RESTAURANTS.find(r => r.name === booking.restaurant);
+  const html       = buildCancellationEmailHTML(booking, restaurant, state.user.name);
+
+  try {
+    await emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      {
+        to_email    : state.user.email,
+        to_name     : state.user.name || 'Guest',
+        subject     : `Your Dinery reservation at ${booking.restaurant} has been cancelled`,
+        html_content: html,
+      },
+      EMAILJS_CONFIG.publicKey
+    );
+  } catch(e) {
+    console.warn('Cancellation email failed:', e);
+  }
+}
+
 // ── State ────────────────────────────────────────────────────────────────────
 const AUTH_SCREENS    = ['signup','signin'];
 const BOOKING_SCREENS = ['book-datetime','book-seating','book-guests','book-details','confirmed'];
@@ -1057,6 +1225,7 @@ async function cancelReservation(ref) {
 
   state.reservations = state.reservations.filter(b => b.ref !== ref);
   persistReservations();
+  sendCancellationEmail(booking); // fire-and-forget; does nothing if EmailJS not configured
   showToast('Reservation cancelled');
   goScreen('reservations');
 }
