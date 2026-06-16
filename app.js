@@ -119,9 +119,9 @@ const TIMES = [
 //   Subject  : {{subject}}
 //   Body     : choose HTML and put only  {{{html_content}}}  in the body field.
 const EMAILJS_CONFIG = {
-  publicKey  : 'YOUR_EMAILJS_PUBLIC_KEY',
-  serviceId  : 'YOUR_EMAILJS_SERVICE_ID',
-  templateId : 'YOUR_EMAILJS_TEMPLATE_ID',
+  publicKey  : 'SxFnV_gA01a9IzeMG',
+  serviceId  : 'service_d02ko6t',
+  templateId : 'template_vwyh9ng',
 };
 
 function buildCancellationEmailHTML(booking, restaurant, userName) {
