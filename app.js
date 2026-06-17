@@ -205,7 +205,7 @@ Your reservation at ${restName} has been cancelled. We hope to host you another 
       Changed your mind, or just looking for the next great table? Browse restaurants and book whenever you're ready.</p>
   </td></tr>
   <tr><td style="background:#FAF4E8;padding:40px 36px;">
-    <a href="https://levongrig.github.io/Dinery/" target="_blank"
+    <a href="https://dinery.am" target="_blank"
        style="display:block;background:#391212;color:#FAF4E8;font-family:Georgia,serif;font-size:14px;letter-spacing:2px;font-weight:bold;text-decoration:none;padding:18px 0;border-radius:3px;text-align:center;text-transform:uppercase;">
       Browse Restaurants</a>
   </td></tr>
