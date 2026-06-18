@@ -198,13 +198,6 @@ function buildConfirmationEmailHTML(booking, restaurant, userName) {
   const mapsUrl  = 'https://maps.google.com/?q=' + encodeURIComponent(address);
   const telHref  = 'tel:' + String(phone).replace(/[^\d+]/g, '');
 
-  // Inline SVG icons (base64) from the approved design
-  const icoEdit   = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMzkxMjEyIiBzdHJva2Utd2lkdGg9IjIuMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTEgNEg0YTIgMiAwIDAgMC0yIDJ2MTRhMiAyIDAgMCAwIDIgMmgxNGEyIDIgMCAwIDAgMi0ydi03Ii8+PHBhdGggZD0iTTE4LjUgMi41YTIuMTIxIDIuMTIxIDAgMCAxIDMgM0wxMiAxNWwtNCAxIDEtNCA5LjUtOS41eiIvPjwvc3ZnPg==';
-  const icoX      = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMzkxMjEyIiBzdHJva2Utd2lkdGg9IjIuMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48bGluZSB4MT0iMTgiIHkxPSI2IiB4Mj0iNiIgeTI9IjE4Ii8+PGxpbmUgeDE9IjYiIHkxPSI2IiB4Mj0iMTgiIHkyPSIxOCIvPjwvc3ZnPg==';
-  const icoIg     = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMzkxMjEyIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHJlY3QgeD0iMiIgeT0iMiIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiByeD0iNSIgcnk9IjUiLz48cGF0aCBkPSJNMTYgMTEuMzdBNCA0IDAgMSAxIDEyLjYzIDggNCA0IDAgMCAxIDE2IDExLjM3eiIvPjxsaW5lIHgxPSIxNy41IiB5MT0iNi41IiB4Mj0iMTcuNTEiIHkyPSI2LjUiLz48L3N2Zz4=';
-  const icoFb     = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMzkxMjEyIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTE4IDJoLTNhNSA1IDAgMCAwLTUgNXYzSDd2NGgzdjhoNHYtOGgzbDEtNGgtNFY3YTEgMSAwIDAgMSAxLTFoM3oiLz48L3N2Zz4=';
-  const icoTt     = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMzkxMjEyIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTkgMTJhNCA0IDAgMSAwIDQgNFY0YTUgNSAwIDAgMCA1IDUiLz48L3N2Zz4=';
-  const icoTw     = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMzkxMjEyIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTIyIDRzLS43IDIuMS0yIDMuNGMxLjYgMTAtOS40IDE3LjMtMTggMTEuNiAyLjIuMSA0LjQtLjYgNi0yQzMgMTUuNSAxLjUgMTEuNSAyIDhjMiAyIDQuNCAzIDcgMy0xLjItMy41IDEuNC03LjUgNS4zLTcuNSAxLjkgMCAzLjcuOSA0LjcgMi41QzIwLjUgNiAyMiA0IDIyIDR6Ii8+PC9zdmc+';
 
   return `<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -269,13 +262,13 @@ Your table is booked. Here are your reservation details for ${restName}.</div>
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"><tr>
       <td align="center" style="padding:0 18px;">
         <a href="${SITE}" target="_blank" style="text-decoration:none;">
-          <div style="width:48px; height:48px; border:2px solid #391212; border-radius:50%; text-align:center; line-height:48px; margin:0 auto 8px auto;"><img src="${icoEdit}" alt="" width="20" style="vertical-align:middle;"></div>
+          <div style="width:48px; height:48px; border:2px solid #391212; border-radius:50%; text-align:center; line-height:46px; margin:0 auto 8px auto; font-size:22px; color:#391212;">&#9998;</div>
           <span style="font-size:11px; letter-spacing:2px; color:#391212; text-transform:uppercase; font-weight:bold;">Modify</span>
         </a>
       </td>
       <td align="center" style="padding:0 18px;">
         <a href="${SITE}" target="_blank" style="text-decoration:none;">
-          <div style="width:48px; height:48px; border:2px solid #391212; border-radius:50%; text-align:center; line-height:48px; margin:0 auto 8px auto;"><img src="${icoX}" alt="" width="20" style="vertical-align:middle;"></div>
+          <div style="width:48px; height:48px; border:2px solid #391212; border-radius:50%; text-align:center; line-height:46px; margin:0 auto 8px auto; font-size:22px; color:#391212;">&#10005;</div>
           <span style="font-size:11px; letter-spacing:2px; color:#391212; text-transform:uppercase; font-weight:bold;">Cancel</span>
         </a>
       </td>
@@ -335,12 +328,11 @@ Your table is booked. Here are your reservation details for ${restName}.</div>
         <p style="margin:0; font-size:11px; color:#8a7a6f; letter-spacing:1px;">YEREVAN, ARMENIA</p>
       </td>
       <td align="right" valign="middle">
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-          <td style="padding:0 4px;"><a href="https://instagram.com/dinery" target="_blank" style="display:inline-block; width:36px; height:36px; border:1.5px solid #391212; border-radius:50%; text-align:center; line-height:36px;"><img src="${icoIg}" alt="Instagram" width="16" style="vertical-align:middle;"></a></td>
-          <td style="padding:0 4px;"><a href="https://facebook.com/dinery" target="_blank" style="display:inline-block; width:36px; height:36px; border:1.5px solid #391212; border-radius:50%; text-align:center; line-height:36px;"><img src="${icoFb}" alt="Facebook" width="16" style="vertical-align:middle;"></a></td>
-          <td style="padding:0 4px;"><a href="https://tiktok.com/@dinery" target="_blank" style="display:inline-block; width:36px; height:36px; border:1.5px solid #391212; border-radius:50%; text-align:center; line-height:36px;"><img src="${icoTt}" alt="TikTok" width="16" style="vertical-align:middle;"></a></td>
-          <td style="padding:0 4px;"><a href="https://twitter.com/dinery" target="_blank" style="display:inline-block; width:36px; height:36px; border:1.5px solid #391212; border-radius:50%; text-align:center; line-height:36px;"><img src="${icoTw}" alt="Twitter" width="16" style="vertical-align:middle;"></a></td>
-        </tr></table>
+        <a href="https://instagram.com/dinery" target="_blank" style="font-size:11px; letter-spacing:2px; color:#391212; text-decoration:none; text-transform:uppercase; font-weight:bold;">Instagram</a>
+        <span style="color:#8a7a6f;">&nbsp;·&nbsp;</span>
+        <a href="https://facebook.com/dinery" target="_blank" style="font-size:11px; letter-spacing:2px; color:#391212; text-decoration:none; text-transform:uppercase; font-weight:bold;">Facebook</a>
+        <span style="color:#8a7a6f;">&nbsp;·&nbsp;</span>
+        <a href="https://tiktok.com/@dinery" target="_blank" style="font-size:11px; letter-spacing:2px; color:#391212; text-decoration:none; text-transform:uppercase; font-weight:bold;">TikTok</a>
       </td>
     </tr></table>
     <p style="margin:24px 0 0 0; font-size:10px; color:#a89a8e; letter-spacing:1px;">
