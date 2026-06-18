@@ -270,7 +270,7 @@
       <div class="time-grid" id="timeGrid"></div>
     </div>
     <div class="cta-wrap">
-      <button class="btn-primary" id="btnDateTime" disabled onclick="goScreen('book-seating')">Continue</button>
+      <button class="btn-primary" id="btnDateTime" disabled onclick="goScreen('book-guests')">Continue</button>
     </div>
   </div>
 
@@ -279,11 +279,11 @@
   ══════════════════════════════ -->
   <div id="screen-book-seating" class="screen">
     <div class="booking-header">
-      <button class="topbar-back" onclick="goBack('book-datetime')">&#8592;</button>
+      <button class="topbar-back" onclick="goBack('book-guests')">&#8592;</button>
       <div class="progress-bar" style="margin-top:16px">
         <div class="progress-step done"></div>
         <div class="progress-step done"></div>
-        <div class="progress-step"></div>
+        <div class="progress-step done"></div>
         <div class="progress-step"></div>
       </div>
       <h2>Choose Your Seating</h2>
@@ -328,7 +328,7 @@
       </div>
     </div>
     <div class="cta-wrap">
-      <button class="btn-primary" id="btnSeating" disabled onclick="goScreen('book-guests')">Continue</button>
+      <button class="btn-primary" id="btnSeating" disabled onclick="goScreen('book-details')">Continue</button>
     </div>
   </div>
 
@@ -337,11 +337,11 @@
   ══════════════════════════════ -->
   <div id="screen-book-guests" class="screen">
     <div class="booking-header">
-      <button class="topbar-back" onclick="goBack('book-seating')">&#8592;</button>
+      <button class="topbar-back" onclick="goBack('book-datetime')">&#8592;</button>
       <div class="progress-bar" style="margin-top:16px">
         <div class="progress-step done"></div>
         <div class="progress-step done"></div>
-        <div class="progress-step done"></div>
+        <div class="progress-step"></div>
         <div class="progress-step"></div>
       </div>
       <h2>How many guests?</h2>
@@ -360,7 +360,7 @@
       </div>
     </div>
     <div class="cta-wrap">
-      <button class="btn-primary" onclick="goScreen('book-details')">Continue</button>
+      <button class="btn-primary" onclick="goScreen('book-seating')">Continue</button>
     </div>
   </div>
 
@@ -369,7 +369,7 @@
   ══════════════════════════════ -->
   <div id="screen-book-details" class="screen">
     <div class="booking-header">
-      <button class="topbar-back" onclick="goBack('book-guests')">&#8592;</button>
+      <button class="topbar-back" onclick="goBack('book-seating')">&#8592;</button>
       <div class="progress-bar" style="margin-top:16px">
         <div class="progress-step done"></div>
         <div class="progress-step done"></div>
@@ -626,6 +626,6 @@
 
 <!-- Firebase (modular SDK, loaded as a module so it can target the named database) -->
 <script type="module" src="firebase-config.js?v=11"></script>
-<script src="app.js?v=15"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>

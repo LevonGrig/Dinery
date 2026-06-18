@@ -494,8 +494,9 @@ function navigate(id, isBack) {
   if (id === 'reservations') { state.changingBookingRef = null; renderReservations(); }
   if (id === 'profile')      renderProfile();
   if (id === 'saved')        renderSaved();
-  if (id === 'book-guests')  initGuests();
-  if (id === 'book-details') populateSummary();
+  if (id === 'book-guests')   initGuests();
+  if (id === 'book-seating')  renderSeating();
+  if (id === 'book-details')  populateSummary();
   if (id === 'edit-profile') populateEditForm();
 }
 
@@ -1014,34 +1015,76 @@ function checkDateTimeReady() {
   document.getElementById('btnDateTime').disabled = !(state.selectedDate && state.selectedTime);
 }
 
-async function selectSeat(type) {
+// Show each hall with its REAL availability for the chosen party size and slot:
+// how many free tables actually fit the group under the no-waste rule. Halls
+// that can't fit the party are dimmed and not selectable.
+async function renderSeating() {
+  const r        = state.selectedRestaurant;
+  const guests   = state.guestCount;
+  const maxWaste = (r?.maxTableWaste == null) ? 1 : r.maxTableWaste;
+
+  state.selectedSeating = null;
   document.querySelectorAll('.seating-option').forEach(el => el.classList.remove('active'));
-  const card = document.getElementById('seat-' + type);
-  card?.classList.add('active');
-  state.selectedSeating = type;
-
-  const r   = state.selectedRestaurant;
   const btn = document.getElementById('btnSeating');
+  if (btn) btn.disabled = true;
 
-  // Party size is capped by this hall's largest table. The exact table is
-  // auto-assigned at confirmation (best-fit), where availability is checked.
-  const hall    = hallById(r, type);
-  const seatSet = (hall?.tables || []).map(t => t.seats);
-  const maxSeat = seatSet.length ? Math.max(...seatSet) : 20;
-  state.maxGuests             = maxSeat;
-  state.selectedHallRemaining = null;
+  for (const hall of (r?.halls || [])) {
+    const card = document.getElementById('seat-' + hall.id);
+    if (!card) continue;
 
-  const label = card?.querySelector('.occupancy-label');
-  if (label && seatSet.length) {
-    label.textContent = `Tables for parties up to ${maxSeat}`;
+    const tables   = hall.tables || [];
+    const tableIds = tables.map(t => t.id);
+
+    let bookedIds = new Set();
+    if (window.tableStore && tableIds.length) {
+      const b = await window.tableStore.bookedSet(r.id, hall.id, state.selectedDate, state.selectedTime, tableIds);
+      if (b) bookedIds = b;   // null => guard inactive, treat as none
+    }
+
+    const freeCount = tableIds.filter(id => !bookedIds.has(id)).length;
+    const fitCount  = tables.filter(t =>
+      !bookedIds.has(t.id) && t.seats >= guests && (t.seats - guests) <= maxWaste).length;
+    const occPct    = tables.length ? Math.round(((tables.length - freeCount) / tables.length) * 100) : 0;
+    const canFit    = fitCount > 0;
+
+    const fill  = card.querySelector('.occupancy-fill');
+    const label = card.querySelector('.occupancy-label');
+    if (fill) {
+      fill.style.width = occPct + '%';
+      fill.className   = 'occupancy-fill ' + (occPct >= 80 ? 'fill-high' : occPct >= 50 ? 'fill-mid' : 'fill-low');
+    }
+    if (label) {
+      label.textContent = canFit
+        ? `${fitCount} table${fitCount === 1 ? '' : 's'} fit your group of ${guests} · ${occPct}% full`
+        : (freeCount === 0
+            ? 'Fully booked for this time'
+            : `No free table fits ${guests} guest${guests === 1 ? '' : 's'} here`);
+    }
+
+    card.classList.toggle('disabled', !canFit);
+    card.style.opacity       = canFit ? '' : '0.55';
+    card.style.pointerEvents = canFit ? '' : 'none';
   }
+}
 
+function selectSeat(type) {
+  const card = document.getElementById('seat-' + type);
+  if (!card || card.classList.contains('disabled')) return;  // can't pick a hall that doesn't fit
+  document.querySelectorAll('.seating-option').forEach(el => el.classList.remove('active'));
+  card.classList.add('active');
+  state.selectedSeating = type;
+  const btn = document.getElementById('btnSeating');
   if (btn) btn.disabled = false;
 }
 
 // Prepare the guest counter, capping it to the selected hall's remaining seats.
 function initGuests() {
-  const max = state.maxGuests || 20;
+  // Party size is capped by the restaurant's largest table across all halls
+  // (the hall is chosen on the next screen).
+  const r = state.selectedRestaurant;
+  const allSeats = (r?.halls || []).flatMap(h => (h.tables || []).map(t => t.seats));
+  const max = allSeats.length ? Math.max(...allSeats) : 20;
+  state.maxGuests = max;
   if (state.guestCount > max) state.guestCount = Math.max(1, max);
   document.getElementById('guestCount').textContent = state.guestCount;
   document.getElementById('guestLabel').textContent = state.guestCount === 1 ? 'guest' : 'guests';
@@ -1052,7 +1095,7 @@ function initGuests() {
   const note = document.getElementById('capacityNote');
   if (note) {
     if (max < 20) {
-      note.textContent = `Largest table in ${hallLabel(state.selectedSeating)} seats ${max} — party size is capped accordingly.`;
+      note.textContent = `Our largest table seats ${max} — for bigger groups, please contact the restaurant directly.`;
       note.style.display = 'block';
     } else {
       note.style.display = 'none';
