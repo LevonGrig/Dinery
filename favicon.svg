@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" fill="#E2A877"/>
+  <!-- plate: soft lower shadow -->
+  <ellipse cx="32" cy="46" rx="25" ry="3" fill="#A06E6E"/>
+  <!-- plate: cream rim -->
+  <ellipse cx="32" cy="43.2" rx="25" ry="4.4" fill="#F4DBB2"/>
+  <!-- plate: dark inner band -->
+  <ellipse cx="32" cy="42" rx="22.5" ry="3" fill="#6E1F22"/>
+  <!-- cloche dome -->
+  <path d="M12 42 A20 18 0 0 1 52 42 Z" fill="#4A181C"/>
+  <!-- knob on top -->
+  <circle cx="32" cy="17.5" r="3.6" fill="#6E1F22"/>
+</svg>
