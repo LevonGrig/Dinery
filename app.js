@@ -273,10 +273,12 @@ async function sendCancellationEmail(booking) {
         subject     : `Your Dinery reservation at ${booking.restaurant} has been cancelled`,
         html_content: html,
       },
-      EMAILJS_CONFIG.publicKey
+      { publicKey: EMAILJS_CONFIG.publicKey }   // EmailJS v4 expects an options object here
     );
+    console.log('Cancellation email sent to', state.user.email);
   } catch(e) {
-    console.warn('Cancellation email failed:', e);
+    // Surface the real EmailJS error (status + text) so failures are diagnosable
+    console.error('Cancellation email failed:', e?.status, e?.text || e?.message || e);
   }
 }
 
