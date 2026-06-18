@@ -1,0 +1,73 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Dinery — Firestore Security Rules
+//
+//  Data model:
+//    /users/{uid}   one document per user, keyed by their Firebase Auth UID.
+//                   Holds: name, phone, email, savedRestaurants[], reservations[]
+//                   and (optionally) an `admin: true` flag for staff.
+//    /halls/{key}   shared seat-capacity documents for the booking guard.
+//
+//  Security model:
+//    • A signed-in user may read/write ONLY their own /users/{uid} document.
+//    • Admins (users whose own doc has admin == true) may read/write everything,
+//      which is what powers the future admin panel.
+//    • A user can NEVER set or change their own `admin` flag — admins are
+//      promoted manually in the Firebase Console (or later via a backend with
+//      the Admin SDK / custom claims).
+//    • /halls is readable & writable by any signed-in user, because the
+//      client-side booking transaction needs it. (Hardening this against
+//      tampering is a job for the future backend.)
+//    • Everything else is denied by default.
+// ─────────────────────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // True if the requester's own /users doc exists and is flagged admin.
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.admin == true;
+    }
+
+    // True if the incoming write does NOT introduce/keep admin == true.
+    // Used so regular users can create/update their own doc but never self-promote.
+    function notClaimingAdmin() {
+      return !('admin' in request.resource.data)
+        || request.resource.data.admin == false;
+    }
+
+    // True if the write leaves the admin flag unchanged from what's stored.
+    function adminFlagUnchanged() {
+      return (('admin' in request.resource.data) ? request.resource.data.admin : false)
+          == (('admin' in resource.data) ? resource.data.admin : false);
+    }
+
+    match /users/{uid} {
+      allow read:   if isOwner(uid) || isAdmin();
+      allow create: if (isOwner(uid) && notClaimingAdmin()) || isAdmin();
+      allow update: if (isOwner(uid) && adminFlagUnchanged()) || isAdmin();
+      allow delete: if isOwner(uid) || isAdmin();
+    }
+
+    match /halls/{key} {
+      allow read:  if signedIn();
+      allow write: if signedIn();
+    }
+
+    // Default deny for anything not matched above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
