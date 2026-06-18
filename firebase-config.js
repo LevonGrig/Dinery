@@ -5,7 +5,8 @@ import {
   signOut, onAuthStateChanged, updatePassword, deleteUser
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc, deleteDoc, runTransaction
+  getFirestore, doc, getDoc, setDoc, deleteDoc, runTransaction,
+  collection, getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -60,6 +61,37 @@ window.db = {
       delete: ()           => deleteDoc(doc(_db, name, id)),
     }),
   }),
+};
+
+// ────────────────────────────────────────────────────────────────────────────
+//  RESTAURANT STORE  (admin-editable restaurant settings)
+//
+//  /restaurants/{id} documents hold admin overrides — currently maxTableWaste
+//  (and, when seeded, halls/tables). The app reads these on startup and merges
+//  them over its built-in defaults. Reads are public (rules), writes admin-only.
+// ────────────────────────────────────────────────────────────────────────────
+window.restaurantStore = {
+  // Returns an array of { id, ...data } for every restaurant doc, or null on error.
+  async all() {
+    try {
+      const snap = await getDocs(collection(_db, 'restaurants'));
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) {
+      console.warn('restaurantStore.all failed:', e);
+      return null;
+    }
+  },
+
+  // Merge-write a restaurant's settings (admin only). Returns { ok }.
+  async update(id, data) {
+    try {
+      await setDoc(doc(_db, 'restaurants', String(id)), data, { merge: true });
+      return { ok: true };
+    } catch (e) {
+      console.error('restaurantStore.update failed:', e);
+      return { ok: false, error: e?.code || e?.message || String(e) };
+    }
+  },
 };
 
 // ────────────────────────────────────────────────────────────────────────────

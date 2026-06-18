@@ -378,6 +378,7 @@ let state = {
   reservations       : [],
   searchFilter       : 'All',
   user               : null,   // { uid?, name, phone, email }
+  isAdmin            : false,  // true if the signed-in user's doc has admin == true
   pendingSaveId      : null,
   changingBookingRef : null,   // ref of booking being changed (replaced on confirm)
   maxGuests          : 20,     // cap based on the selected hall's remaining seats
@@ -408,6 +409,9 @@ document.addEventListener('DOMContentLoaded', () => {
   renderHome();
   goScreen('home');
 
+  // Pull admin-edited settings (e.g. maxTableWaste) over the built-in defaults.
+  loadRestaurantOverrides();
+
   auth.onAuthStateChanged(async (firebaseUser) => {
     if (firebaseUser) {
       // Set minimal user immediately so UI unblocks (saves, etc.)
@@ -421,6 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
       state.user         = null;
       state.favourites   = [];
       state.reservations = [];
+      state.isAdmin      = false;
       renderHome();
       renderProfile();
       refreshCards();
@@ -438,6 +443,7 @@ async function loadUserData(uid, email) {
       state.user         = { uid, name: d.name || '', phone: d.phone || '', email };
       state.favourites   = d.savedRestaurants || [];
       state.reservations = d.reservations || [];
+      state.isAdmin      = d.admin === true;
     } else {
       await db.collection('users').doc(uid).set({
         name: '', phone: '', email, savedRestaurants: [], reservations: []
@@ -497,6 +503,7 @@ function navigate(id, isBack) {
   if (id === 'book-guests')   initGuests();
   if (id === 'book-seating')  renderSeating();
   if (id === 'book-details')  populateSummary();
+  if (id === 'admin')        renderAdmin();
   if (id === 'edit-profile') populateEditForm();
 }
 
@@ -594,6 +601,7 @@ async function doSignOut() {
   state.user         = null;
   state.favourites   = [];
   state.reservations = [];
+  state.isAdmin      = false;
   goScreen('home');
   showToast('Signed out');
 }
@@ -676,6 +684,7 @@ function populateEditForm() {
 // ── Profile screen ────────────────────────────────────────────────────────────
 function renderProfile() {
   const u = state.user;
+  const adminRow = document.getElementById('adminRow');
   if (u) {
     document.getElementById('profileAvatar').textContent = (u.name || u.email || 'U').charAt(0).toUpperCase();
     document.getElementById('profileName').textContent   = u.name || u.email;
@@ -693,6 +702,77 @@ function renderProfile() {
     document.getElementById('signInRow').style.display      = '';
     document.getElementById('createAccRow').style.display   = '';
   }
+  if (adminRow) adminRow.style.display = state.isAdmin ? '' : 'none';
+}
+
+// ── Admin: per-restaurant settings ────────────────────────────────────────────
+// Merge admin-edited /restaurants settings (currently maxTableWaste, and halls
+// if seeded) over the built-in RESTAURANTS so they take effect for bookings.
+async function loadRestaurantOverrides() {
+  if (!window.restaurantStore) return;
+  const docs = await window.restaurantStore.all();
+  if (!docs) return;
+  for (const d of docs) {
+    const r = RESTAURANTS.find(x => String(x.id) === String(d.id));
+    if (!r) continue;
+    if (d.maxTableWaste != null) r.maxTableWaste = d.maxTableWaste;
+    if (Array.isArray(d.halls) && d.halls.length) r.halls = d.halls;
+  }
+}
+
+function renderAdmin() {
+  const list = document.getElementById('adminList');
+  if (!list) return;
+  if (!state.isAdmin) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">🔒</div><h2>Admins only</h2></div>`;
+    return;
+  }
+  list.innerHTML = RESTAURANTS.map(r => {
+    const w = (r.maxTableWaste == null) ? 1 : r.maxTableWaste;
+    return `
+      <div class="admin-rest-card" id="admin-rest-${r.id}">
+        <div class="admin-rest-head">
+          <img src="${r.img}" alt="" class="admin-rest-img">
+          <div>
+            <div class="admin-rest-name">${r.name}</div>
+            <div class="admin-rest-sub">${r.cuisine}</div>
+          </div>
+        </div>
+        <div class="admin-setting">
+          <div class="admin-setting-label">
+            Max empty seats per table
+            <span class="admin-hint">0 = exact fit only · higher = bigger tables for small groups</span>
+          </div>
+          <div class="admin-stepper">
+            <button class="counter-btn" onclick="adminChangeWaste(${r.id}, -1)">−</button>
+            <div class="counter-val" id="adminWaste-${r.id}">${w}</div>
+            <button class="counter-btn" onclick="adminChangeWaste(${r.id}, 1)">+</button>
+          </div>
+        </div>
+        <button class="btn-primary admin-save" id="adminSave-${r.id}" onclick="saveAdminWaste(${r.id})">Save</button>
+      </div>`;
+  }).join('');
+}
+
+function adminChangeWaste(id, delta) {
+  const r = RESTAURANTS.find(x => x.id === id);
+  if (!r) return;
+  const cur = (r.maxTableWaste == null) ? 1 : r.maxTableWaste;
+  r.maxTableWaste = Math.max(0, Math.min(6, cur + delta));
+  const el = document.getElementById(`adminWaste-${id}`);
+  if (el) el.textContent = r.maxTableWaste;
+}
+
+async function saveAdminWaste(id) {
+  const r = RESTAURANTS.find(x => x.id === id);
+  if (!r || !window.restaurantStore) return;
+  const btn = document.getElementById(`adminSave-${id}`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  const res = await window.restaurantStore.update(id, { maxTableWaste: r.maxTableWaste });
+  if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+  showToast(res.ok
+    ? `${r.name}: max waste set to ${r.maxTableWaste}`
+    : `Save failed — ${res.error || 'check your connection / admin access'}`);
 }
 
 // ── Home ─────────────────────────────────────────────────────────────────────
