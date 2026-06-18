@@ -385,3 +385,116 @@ async function sendModifiedEmail(booking, toEmail) {
     html,
   });
 }
+
+// ── Welcome email (sent after account creation) ───────────────────────────────
+function buildWelcomeEmailHTML(name, email) {
+  const SITE = 'https://dinery.am';
+  const who  = name || 'there';
+  const feature = (icon, title, desc) => `
+  <tr><td style="background-color:#FFFFFF; padding:28px 36px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+      <td width="60" valign="top">
+        <div style="width:48px; height:48px; border:2px solid #391212; border-radius:50%; text-align:center; line-height:46px; font-size:22px;">${icon}</div>
+      </td>
+      <td valign="top" style="padding-left:12px;">
+        <p style="margin:0 0 4px 0; font-size:15px; color:#391212; font-weight:bold;">${title}</p>
+        <p style="margin:0; font-size:13px; color:#8a7a6f; line-height:1.6;">${desc}</p>
+      </td>
+    </tr></table>
+  </td></tr>`;
+  const divider = `<tr><td style="background-color:#FFFFFF; padding:0 36px;"><div style="border-top:1.5px solid #391212; line-height:1px; font-size:1px;">&nbsp;</div></td></tr>`;
+
+  return `<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Welcome to Dinery</title></head>
+<body style="margin:0; padding:0; background-color:#FAF4E8; font-family:Georgia, 'Times New Roman', serif;">
+<div style="display:none; font-size:1px; color:#FAF4E8; line-height:1px; max-height:0px; max-width:0px; opacity:0; overflow:hidden;">
+Welcome to Dinery, ${who} — here's everything you need to start booking great tables.</div>
+<center style="width:100%; background-color:#FAF4E8;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px; margin:0 auto;" align="center">
+
+  <tr><td style="background-color:#391212; padding:28px 36px 18px 36px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+      <td align="left"><span style="font-family:Georgia, serif; font-size:22px; letter-spacing:2px; color:#FAF4E8; font-weight:bold;">DINERY</span></td>
+      <td align="right"><span style="font-family:Georgia, serif; font-size:11px; letter-spacing:3px; color:#FAF4E8; text-transform:uppercase;">Yerevan</span></td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="background-color:#391212; padding:0 36px 24px 36px;"><div style="border-top:1.5px solid #FAF4E8; line-height:1px; font-size:1px;">&nbsp;</div></td></tr>
+
+  <tr><td style="background-color:#FDF8F0; padding:40px 36px;">
+    <p style="margin:0 0 14px 0; font-family:Georgia, serif; font-size:12px; letter-spacing:3px; color:#391212; text-transform:uppercase; font-weight:bold;">Welcome</p>
+    <h1 style="margin:0 0 16px 0; font-family:Georgia, serif; font-size:38px; line-height:1.25; color:#391212; font-weight:bold;">Your table<br>is set.</h1>
+    <p style="margin:0; font-size:15px; line-height:1.7; color:#5a4a42;">The Dinery team thanks you for joining our family, ${who}. Here's everything you need to start discovering and booking great tables.</p>
+  </td></tr>
+
+  <tr><td style="background-color:#FFFFFF; padding:40px 36px 10px 36px;">
+    <p style="margin:0 0 16px 0; font-size:11px; letter-spacing:3px; color:#391212; text-transform:uppercase; font-weight:bold;">Account Details</p>
+    <p style="margin:0 0 12px 0; font-size:14px; color:#391212;"><strong>Name</strong><br><span style="color:#5a4a42;">${name || '—'}</span></p>
+    <p style="margin:0; font-size:14px; color:#391212;"><strong>Email</strong><br><span style="color:#5a4a42;">${email || '—'}</span></p>
+  </td></tr>
+
+  <tr><td style="background-color:#FFFFFF; padding:30px 36px 6px 36px;">
+    <p style="margin:0 0 4px 0; font-family:Georgia, serif; font-size:11px; letter-spacing:3px; color:#391212; text-transform:uppercase; font-weight:bold;">What's Next</p>
+    <h2 style="margin:0; font-family:Georgia, serif; font-size:24px; color:#391212; font-weight:bold;">Now that you're in</h2>
+  </td></tr>
+  ${feature('&#128197;', 'Book and modify your reservations', 'Easily reserve a table or update your plans anytime.')}
+  ${divider}
+  ${feature('&#10084;', 'Keep a list of your favourite restaurants', 'Save the spots you love and find them fast.')}
+  ${divider}
+  ${feature('&#128269;', 'Get the best restaurant recommendations', 'Discover new places tailored to your taste.')}
+  ${divider}
+  ${feature('&#127942;', 'Earn points toward rewards', 'Every booking brings you closer to perks that make dining easier.')}
+
+  <tr><td style="background-color:#FAF4E8; padding:40px 36px 0 36px;">
+    <a href="${SITE}" target="_blank" style="display:block; background-color:#391212; color:#FAF4E8; font-family:Georgia, serif; font-size:14px; letter-spacing:2px; font-weight:bold; text-decoration:none; padding:18px 0; border-radius:3px; text-align:center; text-transform:uppercase;"><span style="font-size:15px; vertical-align:middle;">&#127869;</span>&nbsp; Start Exploring Restaurants</a>
+  </td></tr>
+
+  <tr><td align="center" style="background-color:#FAF4E8; padding:40px 36px;">
+    <p style="margin:0 0 16px 0; font-family:Georgia, serif; font-size:22px; letter-spacing:4px; color:#391212; font-weight:bold; text-transform:uppercase;">Reserve. Enjoy. Earn. Redeem.</p>
+    <p style="margin:0 0 20px 0; font-size:14px; color:#5a4a42; line-height:1.6;">"Good food, good friends, good times — that's the Dinery way."</p>
+    <a href="${SITE}" target="_blank" style="font-size:12px; letter-spacing:3px; color:#391212; text-decoration:underline; text-transform:uppercase; font-weight:bold;">&#127873;&nbsp; Learn More</a>
+  </td></tr>
+
+  <tr><td style="background-color:#FAF4E8; padding:0 36px;"><div style="border-top:1.5px solid #391212; line-height:1px; font-size:1px;">&nbsp;</div></td></tr>
+
+  <tr><td align="center" style="background-color:#FAF4E8; padding:32px 36px;">
+    <p style="margin:0 0 6px 0; font-size:11px; letter-spacing:3px; color:#391212; text-transform:uppercase; font-weight:bold;">Need Help?</p>
+    <p style="margin:0; font-size:14px; color:#5a4a42; line-height:1.6;">Our team is here for you — reach us at <a href="mailto:info@dinery.am" style="color:#391212; text-decoration:underline;">info@dinery.am</a></p>
+  </td></tr>
+
+  <tr><td style="background-color:#FDF8F0; padding:32px 36px;">
+    <div style="border-top:1.5px solid #391212; line-height:1px; font-size:1px; margin-bottom:24px;">&nbsp;</div>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+      <td align="left" valign="middle">
+        <p style="margin:0 0 4px 0; font-size:11px; color:#8a7a6f; letter-spacing:1px;">© 2026 DINERY</p>
+        <p style="margin:0; font-size:11px; color:#8a7a6f; letter-spacing:1px;">YEREVAN, ARMENIA</p>
+      </td>
+      <td align="right" valign="middle">
+        <a href="https://instagram.com/dinery" target="_blank" style="font-size:11px; letter-spacing:2px; color:#391212; text-decoration:none; text-transform:uppercase; font-weight:bold;">Instagram</a>
+        <span style="color:#8a7a6f;">&nbsp;·&nbsp;</span>
+        <a href="https://facebook.com/dinery" target="_blank" style="font-size:11px; letter-spacing:2px; color:#391212; text-decoration:none; text-transform:uppercase; font-weight:bold;">Facebook</a>
+        <span style="color:#8a7a6f;">&nbsp;·&nbsp;</span>
+        <a href="https://tiktok.com/@dinery" target="_blank" style="font-size:11px; letter-spacing:2px; color:#391212; text-decoration:none; text-transform:uppercase; font-weight:bold;">TikTok</a>
+      </td>
+    </tr></table>
+    <p style="margin:24px 0 0 0; font-size:10px; color:#a89a8e; letter-spacing:1px;">
+      <a href="${SITE}" style="color:#a89a8e; text-decoration:underline;">Privacy Policy</a> &nbsp;|&nbsp;
+      <a href="${SITE}" style="color:#a89a8e; text-decoration:underline;">Terms of Service</a>
+    </p>
+  </td></tr>
+
+</table>
+</center>
+</body></html>`;
+}
+
+async function sendWelcomeEmail(name, email) {
+  const to = (email || '').trim();
+  if (!to) return;
+  await sendEmail({
+    to,
+    subject: 'Welcome to Dinery 🍽️',
+    html: buildWelcomeEmailHTML(name, to),
+  });
+}

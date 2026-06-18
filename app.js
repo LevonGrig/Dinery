@@ -443,6 +443,7 @@ async function doSignUp() {
   }
 
   showToast('Account created! Welcome, ' + name.split(' ')[0] + ' 👋');
+  sendWelcomeEmail(name, email);   // fire-and-forget welcome email
   goScreen(state.prevScreen === 'confirmed' ? 'confirmed' : 'home');
 }
 
