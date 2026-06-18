@@ -196,7 +196,7 @@ async function releaseBookingSlot(b) {
 // server-side (the key must never live in browser code). Deploy the worker in
 // /cloudflare-worker (see its README) and paste its URL below.
 const EMAIL_CONFIG = {
-  workerUrl: 'https://dinery-email.YOUR-SUBDOMAIN.workers.dev',
+  workerUrl: 'https://dinery-email.proud-disk-7fd3.workers.dev',
 };
 
 // Generic sender — POSTs an email to the Worker. Fire-and-forget; logs failures
