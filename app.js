@@ -154,6 +154,43 @@ async function seedDinery() {
 }
 window.seedDinery = seedDinery;
 
+// Give every restaurant its own halls/tables (defaults) until/unless the admin
+// edits them in Firestore. maxTableWaste = how many empty seats a table may be
+// left with when auto-assigned (1 = strict: a 4-top only goes to parties of 3-4).
+RESTAURANTS.forEach(r => {
+  if (!Array.isArray(r.halls) || !r.halls.length) {
+    r.halls = DEFAULT_HALLS.map(h => ({ id: h.id, label: h.label, tables: h.tables.map(t => ({ ...t })) }));
+  }
+  if (r.maxTableWaste == null) r.maxTableWaste = 1;
+});
+
+function hallById(restaurant, hallId) {
+  return (restaurant?.halls || []).find(h => h.id === hallId) || null;
+}
+function hallLabel(hallId) {
+  return hallById(state.selectedRestaurant, hallId)?.label || SEATING_LABELS[hallId] || hallId;
+}
+
+// Best-fit auto-assignment: the smallest free table that seats the party while
+// leaving at most `maxWaste` empty seats. Returns the chosen table or null.
+function assignTable(hall, guests, bookedIds, maxWaste = 1) {
+  const taken = bookedIds || new Set();
+  return (hall?.tables || [])
+    .filter(t => !taken.has(t.id) && t.seats >= guests && (t.seats - guests) <= maxWaste)
+    .sort((a, b) => (a.seats - b.seats) || String(a.id).localeCompare(String(b.id)))[0] || null;
+}
+
+// Free the table (or legacy seat-count) held by a booking. Used by cancel,
+// change-booking and account deletion.
+async function releaseBookingSlot(b) {
+  if (!b) return;
+  if (b.assignedTable && window.tableStore) {
+    await window.tableStore.release(b.restaurantId, b.hall, b.assignedTable.id, b.slotDate, b.slotTime);
+  } else if (window.hallStore && b.hallKey) {
+    await window.hallStore.release(b.hallKey, b.seats || b.guests || 1);
+  }
+}
+
 // ── Email (EmailJS) ──────────────────────────────────────────────────────────
 // Sign up free at https://www.emailjs.com  then fill in the three values below.
 // In your EmailJS dashboard create one template with:
@@ -604,15 +641,11 @@ async function confirmDeleteAccount() {
   if (!state.user?.uid) return;
   closeDeleteModal();
   try {
-    // Free every held seat back to its hall so the space becomes available
-    // to others — same release path the Cancel button uses, run for all
-    // of this account's reservations before the account is removed.
-    if (window.hallStore) {
-      for (const b of state.reservations) {
-        if (b.hallKey) {
-          await window.hallStore.release(b.hallKey, b.seats || b.guests || 1);
-        }
-      }
+    // Free every held table so the space becomes available to others — same
+    // release path the Cancel button uses, run for all of this account's
+    // reservations before the account is removed.
+    for (const b of state.reservations) {
+      await releaseBookingSlot(b);
     }
 
     await db.collection('users').doc(state.user.uid).delete();
@@ -989,37 +1022,21 @@ async function selectSeat(type) {
 
   const r   = state.selectedRestaurant;
   const btn = document.getElementById('btnSeating');
-  btn.disabled = true;
 
-  // Check live remaining capacity for this hall at the chosen date/time
-  let remaining = null;
-  if (window.hallStore && r && state.selectedDate && state.selectedTime) {
-    const key  = hallKey(r.id, type, state.selectedDate, state.selectedTime);
-    const meta = hallMeta(r.id, type, state.selectedDate, state.selectedTime);
-    remaining  = await window.hallStore.remaining(key, meta);
-  }
+  // Party size is capped by this hall's largest table. The exact table is
+  // auto-assigned at confirmation (best-fit), where availability is checked.
+  const hall    = hallById(r, type);
+  const seatSet = (hall?.tables || []).map(t => t.seats);
+  const maxSeat = seatSet.length ? Math.max(...seatSet) : 20;
+  state.maxGuests             = maxSeat;
+  state.selectedHallRemaining = null;
 
-  // Ignore a stale result if the user tapped a different hall meanwhile
-  if (state.selectedSeating !== type) return;
-
-  state.selectedHallRemaining = remaining;
-  state.maxGuests = (remaining == null) ? 20 : Math.min(20, remaining);
-
-  // Reflect real availability on the card's occupancy label
   const label = card?.querySelector('.occupancy-label');
-  if (remaining != null && label) {
-    label.textContent = remaining <= 0
-      ? 'Fully booked for this time'
-      : `${remaining} seat${remaining === 1 ? '' : 's'} available`;
+  if (label && seatSet.length) {
+    label.textContent = `Tables for parties up to ${maxSeat}`;
   }
 
-  if (remaining != null && remaining <= 0) {
-    showToast(`${SEATING_LABELS[type]} is fully booked at ${state.selectedTime}. Please pick another hall.`);
-    state.selectedSeating = null;
-    card?.classList.remove('active');
-    return;
-  }
-  btn.disabled = false;
+  if (btn) btn.disabled = false;
 }
 
 // Prepare the guest counter, capping it to the selected hall's remaining seats.
@@ -1034,9 +1051,8 @@ function initGuests() {
 
   const note = document.getElementById('capacityNote');
   if (note) {
-    const rem = state.selectedHallRemaining;
-    if (rem != null && rem <= 20) {
-      note.textContent = `Only ${rem} seat${rem === 1 ? '' : 's'} left in ${SEATING_LABELS[state.selectedSeating]} — party size is capped accordingly.`;
+    if (max < 20) {
+      note.textContent = `Largest table in ${hallLabel(state.selectedSeating)} seats ${max} — party size is capped accordingly.`;
       note.style.display = 'block';
     } else {
       note.style.display = 'none';
@@ -1098,54 +1114,74 @@ async function confirmBooking() {
   const dateStr  = dateObj.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'long' });
   const ref      = 'DN' + Math.random().toString(36).substr(2,6).toUpperCase();
 
-  const hall  = state.selectedSeating;
-  const seats = state.guestCount;
-  const key   = hallKey(r.id, hall, state.selectedDate, state.selectedTime);
-  const meta  = hallMeta(r.id, hall, state.selectedDate, state.selectedTime);
+  const hall     = state.selectedSeating;
+  const seats    = state.guestCount;
+  const hallObj  = hallById(r, hall);
+  const maxWaste = (r.maxTableWaste == null) ? 1 : r.maxTableWaste;
 
   // The booking being replaced (change-booking flow), if any
   const oldBooking = state.changingBookingRef
     ? state.reservations.find(b => b.ref === state.changingBookingRef)
     : null;
 
-  // Atomically claim the seats. If we're changing an existing booking, free its
-  // old seats first so moving within the same hall doesn't false-trigger "full";
-  // restore them if the new claim then fails.
-  if (window.hallStore) {
-    const btn = document.getElementById('btnConfirm');
-    if (btn) btn.disabled = true;
+  // Auto-assign the best-fit table. If changing a booking, free its old table
+  // first (so moving within the same hall doesn't falsely look full); restore
+  // it if no new table can be assigned.
+  const btn = document.getElementById('btnConfirm');
+  if (btn) btn.disabled = true;
 
-    if (oldBooking?.hallKey) {
-      await window.hallStore.release(oldBooking.hallKey, oldBooking.seats || oldBooking.guests || 1);
-    }
+  if (oldBooking) await releaseBookingSlot(oldBooking);
 
-    const res = await window.hallStore.reserve(key, meta, seats);
-    if (!res.ok) {
-      // Someone else took the last seats first — re-claim the old ones and bail
-      if (oldBooking?.hallKey) {
-        const oldMeta = hallMeta(oldBooking.restaurantId ?? r.id, oldBooking.hall || hall,
-                                 oldBooking.slotDate || state.selectedDate, oldBooking.slotTime || state.selectedTime);
-        await window.hallStore.reserve(oldBooking.hallKey, oldMeta, oldBooking.seats || oldBooking.guests || 1);
-      }
-      const left = res.remaining;
-      showToast(left > 0
-        ? `${SEATING_LABELS[hall]} only has ${left} seat${left === 1 ? '' : 's'} left — reduce your party size.`
-        : `${SEATING_LABELS[hall]} just filled up. Please choose another hall.`);
-      if (btn) btn.disabled = false;
-      goScreen('book-seating');
-      return;
-    }
+  const tableIds = (hallObj?.tables || []).map(t => t.id);
+  let bookedIds = new Set();
+  if (window.tableStore && tableIds.length) {
+    const b = await window.tableStore.bookedSet(r.id, hall, state.selectedDate, state.selectedTime, tableIds);
+    if (b) bookedIds = b;   // null => guard inactive, treat as none (fail open)
   }
 
+  // Pick a best-fit table and claim it atomically; if another guest grabs it
+  // first, exclude it and try the next best fit.
+  let assignedTable = null;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const pick = assignTable(hallObj, seats, bookedIds, maxWaste);
+    if (!pick) break;
+    if (!window.tableStore) { assignedTable = pick; break; }
+    const claim = await window.tableStore.claim(
+      r.id, hall, pick.id, state.selectedDate, state.selectedTime,
+      { uid: state.user?.uid || null, restaurantId: r.id, hallId: hall,
+        tableId: pick.id, date: state.selectedDate, time: state.selectedTime, guests: seats }
+    );
+    if (claim.ok) { assignedTable = pick; break; }
+    bookedIds.add(pick.id);
+  }
+
+  if (!assignedTable) {
+    // Nothing fit — restore the old booking's table (if we freed one) and bail
+    if (oldBooking?.assignedTable && window.tableStore) {
+      await window.tableStore.claim(
+        oldBooking.restaurantId, oldBooking.hall, oldBooking.assignedTable.id,
+        oldBooking.slotDate, oldBooking.slotTime,
+        { uid: state.user?.uid || null, restaurantId: oldBooking.restaurantId, hallId: oldBooking.hall,
+          tableId: oldBooking.assignedTable.id, date: oldBooking.slotDate, time: oldBooking.slotTime,
+          guests: oldBooking.guests }
+      );
+    }
+    showToast(`No free table fits ${seats} guest${seats === 1 ? '' : 's'} in ${hallLabel(hall)} at ${state.selectedTime}. Try another hall or time.`);
+    if (btn) btn.disabled = false;
+    goScreen('book-seating');
+    return;
+  }
+
+  const seatingText = `${hallLabel(hall)} · Table ${assignedTable.label}`;
   const booking = {
     ref, restaurant:r.name, img:r.img, date:dateStr,
-    time:state.selectedTime, seating:SEATING_LABELS[hall],
+    time:state.selectedTime, seating:seatingText,
     guests:seats, name, phone, requests, ts:Date.now(),
-    // capacity bookkeeping — lets us release seats on cancel/change
-    hallKey: key, seats, hall, restaurantId: r.id,
+    // booking bookkeeping — lets us release the table on cancel/change
+    seats, hall, restaurantId: r.id, assignedTable,
     slotDate: state.selectedDate, slotTime: state.selectedTime,
   };
-  // If changing an existing booking, remove the old one (its seats were freed above)
+  // If changing an existing booking, remove the old one (its table was freed above)
   if (state.changingBookingRef) {
     state.reservations = state.reservations.filter(b => b.ref !== state.changingBookingRef);
     state.changingBookingRef = null;
@@ -1162,7 +1198,7 @@ async function confirmBooking() {
   document.getElementById('confRestName').textContent = r.name;
   document.getElementById('confDate').textContent     = dateStr;
   document.getElementById('confTime').textContent     = state.selectedTime;
-  document.getElementById('confSeating').textContent  = SEATING_LABELS[state.selectedSeating];
+  document.getElementById('confSeating').textContent  = seatingText;
   document.getElementById('confGuests').textContent   = `${state.guestCount} guest${state.guestCount > 1 ? 's' : ''}`;
   document.getElementById('confName').textContent     = name;
   document.getElementById('confRef').textContent      = ref;
@@ -1262,10 +1298,8 @@ async function cancelReservation(ref) {
   if (!booking) return;
   if (!confirm(`Cancel your reservation at ${booking.restaurant} on ${booking.date} at ${booking.time}?`)) return;
 
-  // Release the held seats back to the hall so others can book them
-  if (window.hallStore && booking.hallKey) {
-    await window.hallStore.release(booking.hallKey, booking.seats || booking.guests || 1);
-  }
+  // Release the held table so others can book it
+  await releaseBookingSlot(booking);
 
   state.reservations = state.reservations.filter(b => b.ref !== ref);
   persistReservations();

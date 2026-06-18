@@ -138,3 +138,66 @@ window.hallStore = {
     }
   },
 };
+
+// ────────────────────────────────────────────────────────────────────────────
+//  TABLE STORE  (specific-table booking)
+//
+//  Each booked table is one document under /slots, keyed deterministically by
+//  restaurant + hall + table + date + time. A document's existence means that
+//  table is taken for that slot. Claims run in a transaction so two guests can
+//  never grab the same table at the same instant.
+//
+//  Like hallStore, every method fails OPEN (allows the booking) if Firestore is
+//  unreachable or rules block access — e.g. a not-signed-in guest — so booking
+//  keeps working; the double-booking guard simply goes inactive in that case.
+// ────────────────────────────────────────────────────────────────────────────
+window.tableStore = {
+  _slotId(rid, hall, table, date, time) {
+    return `${rid}__${hall}__${table}__${date}__${time}`.replace(/[:\s]/g, '');
+  },
+
+  // Returns a Set of the tableIds (from `tableIds`) already booked for this
+  // restaurant/hall/date/time, or null if it can't be determined.
+  async bookedSet(rid, hall, date, time, tableIds) {
+    try {
+      const booked = new Set();
+      await Promise.all((tableIds || []).map(async (tid) => {
+        const snap = await getDoc(doc(_db, 'slots', this._slotId(rid, hall, tid, date, time)));
+        if (snap.exists()) booked.add(tid);
+      }));
+      return booked;
+    } catch (e) {
+      console.warn('tableStore.bookedSet failed (guard inactive):', e);
+      return null;
+    }
+  },
+
+  // Atomically claim a table. { ok:true } on success, { ok:false, taken:true }
+  // if someone already has it, or { ok:true, fallback:true } if the guard is
+  // inactive (offline / rules block) so the booking still goes through.
+  async claim(rid, hall, table, date, time, payload) {
+    const id = this._slotId(rid, hall, table, date, time);
+    try {
+      return await runTransaction(_db, async (tx) => {
+        const ref  = doc(_db, 'slots', id);
+        const snap = await tx.get(ref);
+        if (snap.exists()) return { ok: false, taken: true };
+        tx.set(ref, { ...payload, createdAt: Date.now() });
+        return { ok: true };
+      });
+    } catch (e) {
+      console.warn('tableStore.claim failed (allowing booking):', e);
+      return { ok: true, fallback: true };
+    }
+  },
+
+  // Free a table (on cancel / change). Best-effort.
+  async release(rid, hall, table, date, time) {
+    if ((rid == null) || !hall || !table) return;
+    try {
+      await deleteDoc(doc(_db, 'slots', this._slotId(rid, hall, table, date, time)));
+    } catch (e) {
+      console.warn('tableStore.release failed:', e);
+    }
+  },
+};
