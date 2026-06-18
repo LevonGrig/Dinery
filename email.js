@@ -195,6 +195,8 @@ function buildConfirmationEmailHTML(booking, restaurant, userName) {
     : 'No special requests were added to this reservation.';
 
   const SITE     = 'https://dinery.am';
+  // Deep-links that open the app straight into this booking's flow.
+  const manageUrl = (action) => `${SITE}/?r=${encodeURIComponent(ref)}&a=${action}`;
   const mapsUrl  = 'https://maps.google.com/?q=' + encodeURIComponent(address);
   const telHref  = 'tel:' + String(phone).replace(/[^\d+]/g, '');
 
@@ -261,13 +263,13 @@ Your table is booked. Here are your reservation details for ${restName}.</div>
     <p style="margin:0 0 18px 0; font-size:15px; color:#391212; font-weight:bold;">Need to make changes?</p>
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"><tr>
       <td align="center" style="padding:0 18px;">
-        <a href="${SITE}" target="_blank" style="text-decoration:none;">
+        <a href="${manageUrl('modify')}" target="_blank" style="text-decoration:none;">
           <div style="width:48px; height:48px; border:2px solid #391212; border-radius:50%; text-align:center; line-height:46px; margin:0 auto 8px auto; font-size:22px; color:#391212;">&#9998;</div>
           <span style="font-size:11px; letter-spacing:2px; color:#391212; text-transform:uppercase; font-weight:bold;">Modify</span>
         </a>
       </td>
       <td align="center" style="padding:0 18px;">
-        <a href="${SITE}" target="_blank" style="text-decoration:none;">
+        <a href="${manageUrl('cancel')}" target="_blank" style="text-decoration:none;">
           <div style="width:48px; height:48px; border:2px solid #391212; border-radius:50%; text-align:center; line-height:46px; margin:0 auto 8px auto; font-size:22px; color:#391212;">&#10005;</div>
           <span style="font-size:11px; letter-spacing:2px; color:#391212; text-transform:uppercase; font-weight:bold;">Cancel</span>
         </a>
@@ -283,7 +285,7 @@ Your table is booked. Here are your reservation details for ${restName}.</div>
   </td></tr>
 
   <tr><td style="background-color:#FAF4E8; padding:40px 36px 0 36px;">
-    <a href="${SITE}" target="_blank" style="display:block; background-color:#391212; color:#FAF4E8; font-family:Georgia, serif; font-size:14px; letter-spacing:2px; font-weight:bold; text-decoration:none; padding:18px 0; border-radius:3px; text-align:center; text-transform:uppercase;">View or Manage Reservation</a>
+    <a href="${manageUrl('view')}" target="_blank" style="display:block; background-color:#391212; color:#FAF4E8; font-family:Georgia, serif; font-size:14px; letter-spacing:2px; font-weight:bold; text-decoration:none; padding:18px 0; border-radius:3px; text-align:center; text-transform:uppercase;">View or Manage Reservation</a>
   </td></tr>
 
   <tr><td align="center" style="background-color:#FAF4E8; padding:40px 36px;">

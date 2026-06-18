@@ -242,6 +242,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Pull admin-edited settings (e.g. maxTableWaste) over the built-in defaults.
   loadRestaurantOverrides();
 
+  // Capture any deep-link from an email (e.g. ?r=DN123&a=cancel) before auth runs.
+  parseDeepLink();
+
   auth.onAuthStateChanged(async (firebaseUser) => {
     if (firebaseUser) {
       // Set minimal user immediately so UI unblocks (saves, etc.)
@@ -260,8 +263,56 @@ document.addEventListener('DOMContentLoaded', () => {
       renderProfile();
       refreshCards();
     }
+    // Act on an email deep-link once we know the auth/reservation state.
+    if (state.pendingDeepLink) resolvePendingDeepLink();
   });
 });
+
+// ── Email deep-links ──────────────────────────────────────────────────────────
+// Links in confirmation emails point at e.g. https://dinery.am/?r=DN123&a=cancel
+// so a tap opens the app straight into that booking's manage/cancel/modify flow.
+function parseDeepLink() {
+  try {
+    const p      = new URLSearchParams(location.search);
+    const ref    = p.get('r');
+    const action = p.get('a');
+    if (ref && ['view', 'modify', 'cancel'].includes(action)) {
+      state.pendingDeepLink = { ref, action };
+    }
+  } catch (e) { /* ignore malformed URLs */ }
+}
+
+function clearDeepLinkUrl() {
+  try { history.replaceState({}, '', location.pathname); } catch (e) {}
+}
+
+function resolvePendingDeepLink() {
+  const dl = state.pendingDeepLink;
+  if (!dl) return;
+  const booking = state.reservations.find(b => b.ref === dl.ref);
+
+  if (booking) {
+    state.pendingDeepLink = null;
+    clearDeepLinkUrl();
+    if (dl.action === 'cancel')      { goScreen('reservations'); cancelReservation(dl.ref); }
+    else if (dl.action === 'modify') { changeBooking(dl.ref); }
+    else                             { openReservation(dl.ref); }
+    return;
+  }
+
+  // Reservation not loaded yet. If nobody's signed in, their bookings live in
+  // their account — ask them to sign in, then we'll retry after auth loads.
+  if (!state.user) {
+    showToast('Please sign in to manage your reservation.');
+    goScreen('signin');
+  } else {
+    // Signed in, but this code isn't on their account.
+    state.pendingDeepLink = null;
+    clearDeepLinkUrl();
+    showToast("We couldn't find that reservation on your account.");
+    goScreen('reservations');
+  }
+}
 
 // Load the user's profile, favourites and reservations from Firestore.
 // Creates the document on first sign-in if it doesn't exist yet.
