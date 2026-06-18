@@ -120,7 +120,7 @@ const TIMES = [
 //   Body     : choose HTML and put only  {{{html_content}}}  in the body field.
 const EMAILJS_CONFIG = {
   publicKey  : 'SxFnV_gA01a9IzeMG',
-  serviceId  : 'service_d02ko6t',
+  serviceId  : 'service_ydcludo',
   templateId : 'template_9lq68wz',
 };
 
