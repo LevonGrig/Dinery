@@ -65,6 +65,24 @@ service cloud.firestore {
       allow write: if signedIn();
     }
 
+    // Restaurants (incl. their halls & tables). Publicly readable so the app can
+    // show them before sign-in; only admins may create/edit/delete them — this
+    // is what the admin panel writes to.
+    match /restaurants/{restaurantId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
+    // Table booking slots. A slot document's existence means that specific table
+    // is booked for that restaurant/hall/date/time. Created atomically by the
+    // booking transaction; a user may only release (delete/update) their own.
+    match /slots/{slotId} {
+      allow read:   if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow update,
+            delete: if signedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+    }
+
     // Default deny for anything not matched above.
     match /{document=**} {
       allow read, write: if false;

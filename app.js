@@ -112,6 +112,48 @@ const TIMES = [
   { t:"21:00", avail:true  }, { t:"21:30", avail:true  },
 ];
 
+// ── Restaurant data model: halls & tables (Firestore-backed) ──────────────────
+// Each restaurant owns its own halls, and each hall owns its own tables.
+// These DEFAULT_HALLS are only used to SEED the 5 existing restaurants into
+// Firestore the first time; afterwards every restaurant's halls/tables live in
+// its /restaurants/{id} document and are edited from the admin panel.
+function mkTables(prefix, sizes) {
+  return sizes.map((seats, i) => ({ id: `${prefix}${i + 1}`, label: `${prefix}${i + 1}`, seats }));
+}
+const DEFAULT_HALLS = [
+  { id: 'terrace', label: 'Terrace',   tables: mkTables('T', [2, 2, 2, 4, 4, 4, 6, 6]) }, // ~30 seats
+  { id: 'main',    label: 'Main Hall', tables: mkTables('M', [2, 2, 4, 4, 4, 4, 6, 6, 8]) }, // ~40 seats
+  { id: 'vip',     label: 'VIP Room',  tables: mkTables('V', [4, 4, 4]) },                   // 12 seats
+];
+
+// One-time migration: copies the hardcoded RESTAURANTS (plus starter halls/
+// tables) into Firestore. Run ONCE from the browser console as an admin:
+//   await seedDinery()
+// Safe to re-run — it overwrites the /restaurants docs with the same data.
+async function seedDinery() {
+  if (!window.db) { console.error('Firestore not ready'); return; }
+  if (!state.user) { console.error('Sign in (as an admin) before seeding'); return; }
+  for (const r of RESTAURANTS) {
+    const halls = DEFAULT_HALLS.map(h => ({
+      id: h.id, label: h.label, tables: h.tables.map(t => ({ ...t })),
+    }));
+    try {
+      await db.collection('restaurants').doc(String(r.id)).set({
+        id: r.id, name: r.name, cuisine: r.cuisine, desc: r.desc,
+        rating: r.rating, dist: r.dist, price: r.price, time: r.time,
+        address: r.address, phone: r.phone, img: r.img,
+        menu: r.menu, reviews: r.reviews,
+        halls, active: true, order: r.id,
+      });
+      console.log('Seeded restaurant:', r.name);
+    } catch (e) {
+      console.error('Failed to seed', r.name, '-', e?.code || e?.message || e);
+    }
+  }
+  console.log('✅ Seed complete — check Firestore → restaurants collection');
+}
+window.seedDinery = seedDinery;
+
 // ── Email (EmailJS) ──────────────────────────────────────────────────────────
 // Sign up free at https://www.emailjs.com  then fill in the three values below.
 // In your EmailJS dashboard create one template with:
