@@ -191,17 +191,34 @@ async function releaseBookingSlot(b) {
   }
 }
 
-// ── Email (EmailJS) ──────────────────────────────────────────────────────────
-// Sign up free at https://www.emailjs.com  then fill in the three values below.
-// In your EmailJS dashboard create one template with:
-//   To email : {{to_email}}
-//   Subject  : {{subject}}
-//   Body     : choose HTML and put only  {{{html_content}}}  in the body field.
-const EMAILJS_CONFIG = {
-  publicKey  : 'SxFnV_gA01a9IzeMG',
-  serviceId  : 'service_ydcludo',
-  templateId : 'template_9lq68wz',
+// ── Email (Resend via Cloudflare Worker) ─────────────────────────────────────
+// Emails go through a Cloudflare Worker proxy that holds the Resend API key
+// server-side (the key must never live in browser code). Deploy the worker in
+// /cloudflare-worker (see its README) and paste its URL below.
+const EMAIL_CONFIG = {
+  workerUrl: 'https://dinery-email.YOUR-SUBDOMAIN.workers.dev',
 };
+
+// Generic sender — POSTs an email to the Worker. Fire-and-forget; logs failures
+// and silently no-ops until the Worker URL is configured.
+async function sendEmail({ to, subject, html }) {
+  if (!to) return;
+  if (!EMAIL_CONFIG.workerUrl || EMAIL_CONFIG.workerUrl.includes('YOUR-SUBDOMAIN')) return;
+  try {
+    const res = await fetch(EMAIL_CONFIG.workerUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to, subject, html }),
+    });
+    if (!res.ok) {
+      console.error('Email send failed:', res.status, await res.text().catch(() => ''));
+    } else {
+      console.log('Email sent to', to);
+    }
+  } catch (e) {
+    console.error('Email send failed:', e?.message || e);
+  }
+}
 
 function buildCancellationEmailHTML(booking, restaurant, userName) {
   const phone    = restaurant?.phone || 'N/A';
@@ -336,29 +353,13 @@ Your reservation at ${restName} has been cancelled. We hope to host you another 
 
 async function sendCancellationEmail(booking) {
   if (!state.user?.email) return;
-  if (EMAILJS_CONFIG.publicKey === 'YOUR_EMAILJS_PUBLIC_KEY') return; // not configured yet
-  if (typeof emailjs === 'undefined') return;
-
   const restaurant = RESTAURANTS.find(r => r.name === booking.restaurant);
   const html       = buildCancellationEmailHTML(booking, restaurant, state.user.name);
-
-  try {
-    await emailjs.send(
-      EMAILJS_CONFIG.serviceId,
-      EMAILJS_CONFIG.templateId,
-      {
-        to_email    : state.user.email,
-        to_name     : state.user.name || 'Guest',
-        subject     : `Your Dinery reservation at ${booking.restaurant} has been cancelled`,
-        html_content: html,
-      },
-      { publicKey: EMAILJS_CONFIG.publicKey }   // EmailJS v4 expects an options object here
-    );
-    console.log('Cancellation email sent to', state.user.email);
-  } catch(e) {
-    // Surface the real EmailJS error (status + text) so failures are diagnosable
-    console.error('Cancellation email failed:', e?.status, e?.text || e?.message || e);
-  }
+  await sendEmail({
+    to:      state.user.email,
+    subject: `Your Dinery reservation at ${booking.restaurant} has been cancelled`,
+    html,
+  });
 }
 
 // ── State ────────────────────────────────────────────────────────────────────
@@ -1426,7 +1427,7 @@ async function cancelReservation(ref) {
 
   state.reservations = state.reservations.filter(b => b.ref !== ref);
   persistReservations();
-  sendCancellationEmail(booking); // fire-and-forget; does nothing if EmailJS not configured
+  sendCancellationEmail(booking); // fire-and-forget; no-ops until the email Worker URL is set
   showToast('Reservation cancelled');
   goScreen('reservations');
 }
