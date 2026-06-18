@@ -1186,6 +1186,7 @@ async function confirmBooking() {
     slotDate: state.selectedDate, slotTime: state.selectedTime,
   };
   // If changing an existing booking, remove the old one (its table was freed above)
+  const wasModification = !!state.changingBookingRef;
   if (state.changingBookingRef) {
     state.reservations = state.reservations.filter(b => b.ref !== state.changingBookingRef);
     state.changingBookingRef = null;
@@ -1199,9 +1200,14 @@ async function confirmBooking() {
   state.lastBookingPhone = phone;
   state.lastBookingEmail = document.getElementById('fieldEmail').value.trim();
 
-  // Send the booking-confirmation email to whatever address was entered (works
-  // for guests too), falling back to the signed-in user's email.
-  sendConfirmationEmail(booking, state.lastBookingEmail);
+  // Email the right notice to whatever address was entered (works for guests
+  // too), falling back to the signed-in user's email: a "reservation updated"
+  // email after a modification, otherwise the booking-confirmation email.
+  if (wasModification) {
+    sendModifiedEmail(booking, state.lastBookingEmail);
+  } else {
+    sendConfirmationEmail(booking, state.lastBookingEmail);
+  }
 
   document.getElementById('confRestName').textContent = r.name;
   document.getElementById('confDate').textContent     = dateStr;

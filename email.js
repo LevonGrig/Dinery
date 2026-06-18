@@ -179,7 +179,9 @@ async function sendCancellationEmail(booking) {
 
 // Booking-confirmation email — mirrors the editorial design, all fields filled
 // and every button pointing somewhere real.
-function buildConfirmationEmailHTML(booking, restaurant, userName) {
+// One template for both the "confirmed" and "updated" reservation emails.
+// variant: 'confirmed' (new booking) | 'modified' (after a change).
+function buildReservationEmailHTML(booking, restaurant, userName, variant) {
   const restName = booking.restaurant || 'your restaurant';
   const date     = booking.date        || '—';
   const time     = booking.time        || '—';
@@ -194,20 +196,29 @@ function buildConfirmationEmailHTML(booking, restaurant, userName) {
     ? booking.requests.trim()
     : 'No special requests were added to this reservation.';
 
+  const isMod    = variant === 'modified';
+  const title    = isMod ? 'Your Dinery Reservation Has Been Updated' : 'Your Dinery Reservation is Confirmed';
+  const preview  = isMod
+    ? `Your reservation at ${restName} has been updated. Here are your new details.`
+    : `Your table is booked. Here are your reservation details for ${restName}.`;
+  const headline = isMod ? 'Your reservation has been updated' : 'Your reservation is confirmed';
+  const subline  = isMod
+    ? `Thank you, ${name} — your reservation has been updated. Here are your new details.`
+    : `Thank you, ${name} — your evening is set. Here are your reservation details.`;
+
   const SITE     = 'https://dinery.am';
   // Deep-links that open the app straight into this booking's flow.
   const manageUrl = (action) => `${SITE}/?r=${encodeURIComponent(ref)}&a=${action}`;
   const mapsUrl  = 'https://maps.google.com/?q=' + encodeURIComponent(address);
   const telHref  = 'tel:' + String(phone).replace(/[^\d+]/g, '');
 
-
   return `<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Your Dinery Reservation is Confirmed</title></head>
+<title>${title}</title></head>
 <body style="margin:0; padding:0; background-color:#FAF4E8; font-family:Georgia, 'Times New Roman', serif;">
 <div style="display:none; font-size:1px; color:#FAF4E8; line-height:1px; max-height:0px; max-width:0px; opacity:0; overflow:hidden;">
-Your table is booked. Here are your reservation details for ${restName}.</div>
+${preview}</div>
 <center style="width:100%; background-color:#FAF4E8;">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px; margin:0 auto;" align="center">
 
@@ -222,8 +233,8 @@ Your table is booked. Here are your reservation details for ${restName}.</div>
   </td></tr>
 
   <tr><td align="center" style="background-color:#FDF8F0; padding:40px 36px;">
-    <h1 style="margin:0 0 16px 0; font-family:Georgia, serif; font-size:34px; line-height:1.25; color:#391212; font-weight:bold; text-transform:uppercase; letter-spacing:1px;">Your reservation is confirmed</h1>
-    <p style="margin:0; font-size:15px; line-height:1.7; color:#5a4a42;">Thank you, ${name} — your evening is set. Here are your reservation details.</p>
+    <h1 style="margin:0 0 16px 0; font-family:Georgia, serif; font-size:34px; line-height:1.25; color:#391212; font-weight:bold; text-transform:uppercase; letter-spacing:1px;">${headline}</h1>
+    <p style="margin:0; font-size:15px; line-height:1.7; color:#5a4a42;">${subline}</p>
   </td></tr>
 
   <tr><td style="background-color:#FFFFFF; padding:40px 36px;">
@@ -254,7 +265,7 @@ Your table is booked. Here are your reservation details for ${restName}.</div>
     <p style="margin:0 0 6px 0; font-size:15px; color:#391212; font-weight:bold;">Address &amp; Phone</p>
     <p style="margin:0 0 4px 0; font-size:13px; color:#8a7a6f; line-height:1.6;">${address}</p>
     <p style="margin:0 0 16px 0; font-size:13px; color:#8a7a6f; line-height:1.6;">${phone}</p>
-    <a href="${mapsUrl}" target="_blank" style="display:inline-block; background-color:#391212; color:#FAF4E8; font-family:Georgia, serif; font-size:12px; letter-spacing:2px; font-weight:bold; text-decoration:none; padding:12px 28px; border-radius:3px; text-align:center; text-transform:uppercase;">Get Directions</a>
+    <a href="${mapsUrl}" target="_blank" style="display:inline-block; background-color:#391212; color:#FAF4E8; font-family:Georgia, serif; font-size:12px; letter-spacing:2px; font-weight:bold; text-decoration:none; padding:12px 28px; border-radius:3px; text-align:center; text-transform:uppercase;"><span style="font-size:15px; vertical-align:middle;">&#128205;</span>&nbsp; Get Directions</a>
   </td></tr>
 
   <tr><td style="background-color:#FFFFFF; padding:0 36px;"><div style="border-top:1.5px solid #391212; line-height:1px; font-size:1px;">&nbsp;</div></td></tr>
@@ -285,13 +296,13 @@ Your table is booked. Here are your reservation details for ${restName}.</div>
   </td></tr>
 
   <tr><td style="background-color:#FAF4E8; padding:40px 36px 0 36px;">
-    <a href="${manageUrl('view')}" target="_blank" style="display:block; background-color:#391212; color:#FAF4E8; font-family:Georgia, serif; font-size:14px; letter-spacing:2px; font-weight:bold; text-decoration:none; padding:18px 0; border-radius:3px; text-align:center; text-transform:uppercase;">View or Manage Reservation</a>
+    <a href="${manageUrl('view')}" target="_blank" style="display:block; background-color:#391212; color:#FAF4E8; font-family:Georgia, serif; font-size:14px; letter-spacing:2px; font-weight:bold; text-decoration:none; padding:18px 0; border-radius:3px; text-align:center; text-transform:uppercase;"><span style="font-size:15px; vertical-align:middle;">&#128203;</span>&nbsp; View or Manage Reservation</a>
   </td></tr>
 
   <tr><td align="center" style="background-color:#FAF4E8; padding:40px 36px;">
     <p style="margin:0 0 16px 0; font-family:Georgia, serif; font-size:22px; letter-spacing:4px; color:#391212; font-weight:bold; text-transform:uppercase;">Reserve. Enjoy. Earn. Redeem.</p>
     <p style="margin:0 0 24px 0; font-size:14px; color:#5a4a42; line-height:1.6;">You'll earn points for this reservation — redeemable toward future perks.</p>
-    <a href="${SITE}" target="_blank" style="font-size:12px; letter-spacing:3px; color:#391212; text-decoration:underline; text-transform:uppercase; font-weight:bold;">Learn More</a>
+    <a href="${SITE}/?r=${encodeURIComponent(ref)}&a=view" target="_blank" style="font-size:12px; letter-spacing:3px; color:#391212; text-decoration:underline; text-transform:uppercase; font-weight:bold;">&#127873;&nbsp; Learn More</a>
   </td></tr>
 
   <tr><td style="background-color:#FAF4E8; padding:0 36px;"><div style="border-top:1.5px solid #391212; line-height:1px; font-size:1px;">&nbsp;</div></td></tr>
@@ -348,6 +359,9 @@ Your table is booked. Here are your reservation details for ${restName}.</div>
 </body></html>`;
 }
 
+const buildConfirmationEmailHTML = (b, r, n) => buildReservationEmailHTML(b, r, n, 'confirmed');
+const buildModifiedEmailHTML     = (b, r, n) => buildReservationEmailHTML(b, r, n, 'modified');
+
 async function sendConfirmationEmail(booking, toEmail) {
   const to = (toEmail || state.user?.email || '').trim();
   if (!to) return;
@@ -356,6 +370,18 @@ async function sendConfirmationEmail(booking, toEmail) {
   await sendEmail({
     to,
     subject: `Your Dinery reservation at ${booking.restaurant} is confirmed — ${booking.ref}`,
+    html,
+  });
+}
+
+async function sendModifiedEmail(booking, toEmail) {
+  const to = (toEmail || state.user?.email || '').trim();
+  if (!to) return;
+  const restaurant = RESTAURANTS.find(r => r.name === booking.restaurant);
+  const html       = buildModifiedEmailHTML(booking, restaurant, booking.name || state.user?.name);
+  await sendEmail({
+    to,
+    subject: `Your Dinery reservation at ${booking.restaurant} has been updated — ${booking.ref}`,
     html,
   });
 }
