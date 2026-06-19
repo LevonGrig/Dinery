@@ -1200,6 +1200,11 @@ async function confirmBooking() {
     // booking bookkeeping — lets us release the table on cancel/change
     seats, hall, restaurantId: r.id, assignedTable,
     slotDate: state.selectedDate, slotTime: state.selectedTime,
+    email: (document.getElementById('fieldEmail').value.trim() || state.user?.email || ''),
+    // lifecycle — used by the scheduler (reminders / no-show / review) and the
+    // future admin check-in. status: booked → checkedIn | cancelled | completed
+    status: 'booked', checkInAt: null,
+    remind60Sent: false, remind30Sent: false, reviewSent: false,
   };
   // If changing an existing booking, remove the old one (its table was freed above)
   const wasModification = !!state.changingBookingRef;
@@ -1337,6 +1342,21 @@ async function cancelReservation(ref) {
   showToast('Reservation cancelled');
   goScreen('reservations');
 }
+
+// ── Check-in service (foundation for the future admin panel) ──────────────────
+// Marks a reservation as checked-in. The admin panel will call this (eventually
+// for any guest's reservation); for now it operates on the signed-in user's own
+// list. The scheduler keys the review email and no-show auto-cancel off `status`
+// and `checkInAt`.
+function checkInReservation(ref) {
+  const b = state.reservations.find(x => x.ref === ref);
+  if (!b) return false;
+  b.status   = 'checkedIn';
+  b.checkInAt = Date.now();
+  persistReservations();
+  return true;
+}
+window.checkInReservation = checkInReservation;
 
 // Save the current reservations array to the signed-in user's Firestore doc.
 function persistReservations() {

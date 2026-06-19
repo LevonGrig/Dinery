@@ -498,3 +498,104 @@ async function sendWelcomeEmail(name, email) {
     html: buildWelcomeEmailHTML(name, to),
   });
 }
+
+// ── Review request email (sent ~1h after check-in) ────────────────────────────
+function buildReviewEmailHTML(booking, restaurant, userName) {
+  const restName = booking.restaurant || 'your restaurant';
+  const date     = booking.date        || '—';
+  const time     = booking.time        || '—';
+  const guests   = booking.guests      || '—';
+  const ref      = booking.ref         || '—';
+  const name     = userName            || 'Guest';
+  const imgUrl   = booking.img || restaurant?.img || '';
+  const SITE     = 'https://dinery.am';
+  // Until a dedicated review page exists, the stars open the reservation in-app.
+  const reviewUrl = (rating) => `${SITE}/?r=${encodeURIComponent(ref)}&a=review${rating ? `&rating=${rating}` : ''}`;
+  const star = (rating) => `<a href="${reviewUrl(rating)}" target="_blank" style="text-decoration:none; color:#C9A24B; font-size:34px; padding:0 3px;">&#9733;</a>`;
+
+  return `<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How was your visit? — Dinery</title></head>
+<body style="margin:0; padding:0; background-color:#FAF4E8; font-family:Georgia, 'Times New Roman', serif;">
+<div style="display:none; font-size:1px; color:#FAF4E8; line-height:1px; max-height:0px; max-width:0px; opacity:0; overflow:hidden;">
+How was your evening at ${restName}? Leave a review and earn bonus points.</div>
+<center style="width:100%; background-color:#FAF4E8;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px; margin:0 auto;" align="center">
+
+  <tr><td style="background-color:#391212; padding:28px 36px 18px 36px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+      <td align="left"><span style="font-family:Georgia, serif; font-size:22px; letter-spacing:2px; color:#FAF4E8; font-weight:bold;">DINERY</span></td>
+      <td align="right"><span style="font-family:Georgia, serif; font-size:11px; letter-spacing:3px; color:#FAF4E8; text-transform:uppercase;">Yerevan</span></td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="background-color:#391212; padding:0 36px 24px 36px;"><div style="border-top:1.5px solid #FAF4E8; line-height:1px; font-size:1px;">&nbsp;</div></td></tr>
+
+  <tr><td align="center" style="background-color:#FDF8F0; padding:40px 36px;">
+    <h1 style="margin:0 0 16px 0; font-family:Georgia, serif; font-size:34px; line-height:1.25; color:#391212; font-weight:bold; text-transform:uppercase; letter-spacing:1px;">Tell us about your visit</h1>
+    <p style="margin:0; font-size:15px; line-height:1.7; color:#5a4a42;">You dined at ${restName} on ${date}. We'd love to hear how it went, ${name}.</p>
+  </td></tr>
+
+  ${imgUrl ? `<tr><td style="background:#fff;padding:0;line-height:0;"><img src="${imgUrl}" width="600" alt="${restName}" style="width:100%;max-width:600px;height:220px;object-fit:cover;display:block;"></td></tr>` : ''}
+
+  <tr><td align="center" style="background-color:#FFFFFF; padding:32px 36px 8px 36px;">
+    <p style="margin:0; font-size:14px; color:#391212;"><strong>${restName}</strong></p>
+    <p style="margin:4px 0 0 0; font-size:13px; color:#8a7a6f;">${date} at ${time} — ${guests} guest${guests === 1 ? '' : 's'}</p>
+  </td></tr>
+
+  <tr><td align="center" style="background-color:#FFFFFF; padding:24px 36px 40px 36px;">
+    <p style="margin:0 0 14px 0; font-size:11px; letter-spacing:3px; color:#391212; text-transform:uppercase; font-weight:bold;">How would you rate it?</p>
+    <p style="margin:0 0 26px 0;">${star(1)}${star(2)}${star(3)}${star(4)}${star(5)}</p>
+    <a href="${reviewUrl()}" target="_blank" style="display:block; background-color:#391212; color:#FAF4E8; font-family:Georgia, serif; font-size:14px; letter-spacing:2px; font-weight:bold; text-decoration:none; padding:18px 0; border-radius:3px; text-align:center; text-transform:uppercase;"><span style="font-size:15px; vertical-align:middle;">&#9733;</span>&nbsp; Leave a Review</a>
+  </td></tr>
+
+  <tr><td align="center" style="background-color:#FAF4E8; padding:40px 36px;">
+    <p style="margin:0 0 16px 0; font-family:Georgia, serif; font-size:22px; letter-spacing:4px; color:#391212; font-weight:bold; text-transform:uppercase;">Reserve. Enjoy. Earn. Redeem.</p>
+    <p style="margin:0 0 24px 0; font-size:14px; color:#5a4a42; line-height:1.6;">Leave a review and earn bonus points — redeemable toward future perks.</p>
+    <a href="${SITE}" target="_blank" style="font-size:12px; letter-spacing:3px; color:#391212; text-decoration:underline; text-transform:uppercase; font-weight:bold;">&#127873;&nbsp; Learn More</a>
+  </td></tr>
+
+  <tr><td style="background-color:#FAF4E8; padding:0 36px;"><div style="border-top:1.5px solid #391212; line-height:1px; font-size:1px;">&nbsp;</div></td></tr>
+
+  <tr><td align="center" style="background-color:#FAF4E8; padding:32px 36px;">
+    <p style="margin:0 0 6px 0; font-size:11px; letter-spacing:3px; color:#391212; text-transform:uppercase; font-weight:bold;">Need Help?</p>
+    <p style="margin:0; font-size:14px; color:#5a4a42; line-height:1.6;">Call us at <a href="tel:+37494115955" style="color:#391212; text-decoration:underline;">+374 94 115955</a> or email <a href="mailto:info@dinery.am" style="color:#391212; text-decoration:underline;">info@dinery.am</a></p>
+  </td></tr>
+
+  <tr><td style="background-color:#FDF8F0; padding:32px 36px;">
+    <div style="border-top:1.5px solid #391212; line-height:1px; font-size:1px; margin-bottom:24px;">&nbsp;</div>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+      <td align="left" valign="middle">
+        <p style="margin:0 0 4px 0; font-size:11px; color:#8a7a6f; letter-spacing:1px;">© 2026 DINERY</p>
+        <p style="margin:0; font-size:11px; color:#8a7a6f; letter-spacing:1px;">YEREVAN, ARMENIA</p>
+      </td>
+      <td align="right" valign="middle">
+        <a href="https://instagram.com/dinery" target="_blank" style="font-size:11px; letter-spacing:2px; color:#391212; text-decoration:none; text-transform:uppercase; font-weight:bold;">Instagram</a>
+        <span style="color:#8a7a6f;">&nbsp;·&nbsp;</span>
+        <a href="https://facebook.com/dinery" target="_blank" style="font-size:11px; letter-spacing:2px; color:#391212; text-decoration:none; text-transform:uppercase; font-weight:bold;">Facebook</a>
+        <span style="color:#8a7a6f;">&nbsp;·&nbsp;</span>
+        <a href="https://tiktok.com/@dinery" target="_blank" style="font-size:11px; letter-spacing:2px; color:#391212; text-decoration:none; text-transform:uppercase; font-weight:bold;">TikTok</a>
+      </td>
+    </tr></table>
+    <p style="margin:24px 0 0 0; font-size:10px; color:#a89a8e; letter-spacing:1px;">
+      <a href="${SITE}" style="color:#a89a8e; text-decoration:underline;">Privacy Policy</a> &nbsp;|&nbsp;
+      <a href="${SITE}" style="color:#a89a8e; text-decoration:underline;">Terms of Service</a>
+    </p>
+  </td></tr>
+
+</table>
+</center>
+</body></html>`;
+}
+
+async function sendReviewRequestEmail(booking, toEmail) {
+  const to = (toEmail || state.user?.email || '').trim();
+  if (!to) return;
+  const restaurant = RESTAURANTS.find(r => r.name === booking.restaurant);
+  const html       = buildReviewEmailHTML(booking, restaurant, booking.name || state.user?.name);
+  await sendEmail({
+    to,
+    subject: `How was your visit to ${booking.restaurant}? ⭐`,
+    html,
+  });
+}
