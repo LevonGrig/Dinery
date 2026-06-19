@@ -529,8 +529,8 @@
       <div class="left"><span class="mi-icon">❤️</span><span class="mi-label">Saved Restaurants</span></div>
       <span class="arrow">›</span>
     </div>
-    <div class="profile-menu-item" onclick="showToast('Notifications coming soon')">
-      <div class="left"><span class="mi-icon">🔔</span><span class="mi-label">Notifications</span></div>
+    <div class="profile-menu-item" onclick="enablePushNotifications()">
+      <div class="left"><span class="mi-icon">🔔</span><span class="mi-label">Enable Notifications</span></div>
       <span class="arrow">›</span>
     </div>
     <div class="profile-menu-item" onclick="openHelpModal()">
@@ -674,6 +674,7 @@
 
 <!-- Firebase (modular SDK, loaded as a module so it can target the named database) -->
 <script type="module" src="firebase-config.js?v=11"></script>
+<script src="push.js?v=1"></script>
 <script src="email.js?v=7"></script>
 <script src="app.js?v=27"></script>
 </body>
