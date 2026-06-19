@@ -36,7 +36,7 @@ async function sendEmail({ to, subject, html }) {
 }
 
 function buildCancellationEmailHTML(booking, restaurant, userName) {
-  const phone    = restaurant?.phone || 'N/A';
+  const phone    = '+37494115955';
   const imgUrl   = restaurant?.img   || '';
   const restName = booking.restaurant || 'your restaurant';
   const date     = booking.date        || '—';
@@ -190,7 +190,7 @@ function buildReservationEmailHTML(booking, restaurant, userName, variant) {
   const seating  = booking.seating     || '';
   const name     = userName            || 'Guest';
   const address  = restaurant?.address || 'Yerevan, Armenia';
-  const phone    = restaurant?.phone   || '';
+  const phone    = '+37494115955';
   const imgUrl   = booking.img || restaurant?.img || '';
   const requests = (booking.requests && booking.requests.trim())
     ? booking.requests.trim()

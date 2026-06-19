@@ -528,6 +528,9 @@ function closeDeleteModal() {
   m.style.display = 'none';
 }
 
+function openHelpModal()  { document.getElementById('help-modal').style.display = 'flex'; }
+function closeHelpModal() { document.getElementById('help-modal').style.display = 'none'; }
+
 async function confirmDeleteAccount() {
   if (!state.user?.uid) return;
   closeDeleteModal();

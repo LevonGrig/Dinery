@@ -31,6 +31,28 @@
   </div>
 
   <!-- ══════════════════════════════
+       HELP & SUPPORT MODAL
+  ══════════════════════════════ -->
+  <div id="help-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);align-items:flex-end;justify-content:center" onclick="if(event.target===this)closeHelpModal()">
+    <div style="background:#fff;border-radius:20px 20px 0 0;padding:32px 24px 40px;width:100%;max-width:540px;box-shadow:0 -4px 32px rgba(0,0,0,.15)">
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="font-size:48px;margin-bottom:14px">💬</div>
+        <h2 style="font-size:20px;margin-bottom:8px">Help &amp; Support</h2>
+        <p style="font-size:14px;color:var(--gray);line-height:1.5">We're here to help. Reach our team any time:</p>
+      </div>
+      <a href="tel:+37494115955" style="display:flex;align-items:center;gap:14px;text-decoration:none;color:var(--dark);padding:16px;border-radius:12px;background:var(--cream-dark,#f5ede0);margin-bottom:12px">
+        <span style="font-size:22px">📞</span>
+        <span><span style="display:block;font-size:12px;color:var(--gray)">Call us</span><strong style="font-size:16px">+374 94 115955</strong></span>
+      </a>
+      <a href="mailto:info@dinery.am" style="display:flex;align-items:center;gap:14px;text-decoration:none;color:var(--dark);padding:16px;border-radius:12px;background:var(--cream-dark,#f5ede0);margin-bottom:20px">
+        <span style="font-size:22px">✉️</span>
+        <span><span style="display:block;font-size:12px;color:var(--gray)">Email us</span><strong style="font-size:16px">info@dinery.am</strong></span>
+      </a>
+      <button onclick="closeHelpModal()" style="width:100%;padding:14px;border:none;border-radius:12px;background:var(--dark,#391212);color:#fff;font-size:16px;font-weight:600;cursor:pointer">Close</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
        SAVE CREDENTIALS MODAL
   ══════════════════════════════ -->
   <div id="save-modal">
@@ -511,7 +533,7 @@
       <div class="left"><span class="mi-icon">🔔</span><span class="mi-label">Notifications</span></div>
       <span class="arrow">›</span>
     </div>
-    <div class="profile-menu-item" onclick="showToast('Help & Support coming soon')">
+    <div class="profile-menu-item" onclick="openHelpModal()">
       <div class="left"><span class="mi-icon">💬</span><span class="mi-label">Help & Support</span></div>
       <span class="arrow">›</span>
     </div>
@@ -652,7 +674,7 @@
 
 <!-- Firebase (modular SDK, loaded as a module so it can target the named database) -->
 <script type="module" src="firebase-config.js?v=11"></script>
-<script src="email.js?v=5"></script>
-<script src="app.js?v=24"></script>
+<script src="email.js?v=6"></script>
+<script src="app.js?v=25"></script>
 </body>
 </html>
