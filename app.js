@@ -104,13 +104,17 @@ const RESTAURANTS = [
   },
 ];
 
+// Service times (lunch + dinner). Availability is real: a slot is only
+// disabled when it has already passed for the selected day.
 const TIMES = [
-  { t:"12:00", avail:true  }, { t:"12:30", avail:true  }, { t:"13:00", avail:false },
-  { t:"13:30", avail:true  }, { t:"14:00", avail:true  }, { t:"14:30", avail:false },
-  { t:"18:00", avail:true  }, { t:"18:30", avail:true  }, { t:"19:00", avail:true  },
-  { t:"19:30", avail:true  }, { t:"20:00", avail:false }, { t:"20:30", avail:true  },
-  { t:"21:00", avail:true  }, { t:"21:30", avail:true  },
+  "12:00","12:30","13:00","13:30","14:00","14:30",
+  "18:00","18:30","19:00","19:30","20:00","20:30","21:00","21:30",
 ];
+
+// Local YYYY-MM-DD (avoids the UTC off-by-one that toISOString() can cause).
+function localISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 // ── Restaurant data model: halls & tables (Firestore-backed) ──────────────────
 // Each restaurant owns its own halls, and each hall owns its own tables.
@@ -944,7 +948,7 @@ function buildDateGrid() {
   for (let i = 0; i < 14; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
-    const iso = d.toISOString().split('T')[0];
+    const iso = localISO(d);
     html += `<div class="date-cell" onclick="selectDate(this,'${iso}')">
       <div class="day">${days[d.getDay()]}</div>
       <div class="num">${d.getDate()}</div>
@@ -953,19 +957,27 @@ function buildDateGrid() {
   document.getElementById('dateGrid').innerHTML = html;
 }
 
+// Times that have already passed today are greyed out and not selectable.
 function buildTimeGrid() {
-  document.getElementById('timeGrid').innerHTML = TIMES.map(t =>
-    `<div class="time-btn ${t.avail ? '' : 'unavailable'}"
-      ${t.avail ? `onclick="selectTime(this,'${t.t}')"` : ''}>
-      ${t.t}
-    </div>`
-  ).join('');
+  const now      = new Date();
+  const isToday  = state.selectedDate === localISO(now);
+  const nowMins  = now.getHours() * 60 + now.getMinutes();
+  document.getElementById('timeGrid').innerHTML = TIMES.map(t => {
+    const [h, m] = t.split(':').map(Number);
+    const past   = isToday && (h * 60 + m) <= nowMins;
+    return `<div class="time-btn ${past ? 'unavailable' : ''}"
+      ${past ? '' : `onclick="selectTime(this,'${t}')"`}>${t}</div>`;
+  }).join('');
 }
 
 function selectDate(el, date) {
   document.querySelectorAll('.date-cell').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   state.selectedDate = date;
+  // Rebuild times for the chosen day (so today's past slots get disabled) and
+  // drop any previously picked time that may no longer be valid.
+  state.selectedTime = null;
+  buildTimeGrid();
   checkDateTimeReady();
 }
 
