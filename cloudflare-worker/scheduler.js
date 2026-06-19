@@ -81,8 +81,10 @@ async function runScheduler(env) {
         kept.push(b); continue;
       }
 
-      // No-show auto-cancel: 15+ min past the slot and still merely 'booked'
-      if (b.status === 'booked' && mins !== null && mins <= -15) {
+      // No-show auto-cancel: 15+ min past the slot and still merely 'booked'.
+      // Off unless ENABLE_AUTOCANCEL === 'true' (until admin check-in exists,
+      // this would cancel every booking — so it's opt-in).
+      if (env.ENABLE_AUTOCANCEL === 'true' && b.status === 'booked' && mins !== null && mins <= -15) {
         try {
           await deleteSlot(token, b);
           await sendEmailResend(env, cancelEmail(b), `Your Dinery reservation at ${b.restaurant} was cancelled`, b.email);
