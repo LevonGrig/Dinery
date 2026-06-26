@@ -774,3 +774,178 @@
       /* ── Toast ── */
       #toast { bottom: 24px; }
     }
+
+    /* ══════════════════════════════════════════════════════════════════
+       RESTAURANT DETAIL — SPLIT LAYOUT
+       Mobile  (<960px): stacked single column, hero at top, mobile CTA
+       Desktop (≥960px): 60/40 grid, sticky reservation panel on right
+    ══════════════════════════════════════════════════════════════════ */
+
+    /* Desktop gallery is hidden by default (mobile shows .detail-hero) */
+    .detail-gallery-d { display: none; }
+    /* Sticky panel is hidden by default on mobile */
+    .detail-right { display: none; }
+
+    @media (min-width: 960px) {
+
+      /* Hide mobile hero and mobile CTA on desktop */
+      #screen-detail .detail-hero   { display: none; }
+      #screen-detail .detail-mobile-cta { display: none; }
+
+      /* Make scroll-content fill properly for sticky to work */
+      #screen-detail .scroll-content { overflow-y: auto; }
+
+      /* ── Two-column grid ── */
+      .detail-layout {
+        display: flex;
+        align-items: flex-start;
+        gap: 32px;
+        padding: 32px 40px 48px;
+      }
+
+      /* Left: restaurant info + tabs, flexible */
+      .detail-left {
+        flex: 3 1 0;
+        min-width: 0;
+      }
+
+      /* Right: sticky reservation panel */
+      .detail-right {
+        display: block;
+        flex: 0 0 360px;
+        position: sticky;
+        top: 24px;
+      }
+
+      /* Desktop gallery inside left column */
+      .detail-gallery-d {
+        display: block;
+        position: relative;
+        height: 340px;
+        border-radius: var(--radius);
+        overflow: hidden;
+        margin-bottom: 0;
+      }
+      .detail-gallery-d img {
+        width: 100%; height: 100%; object-fit: cover; display: block;
+      }
+      .detail-gallery-d .overlay {
+        position: absolute; inset: 0;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, transparent 50%);
+      }
+      .detail-gallery-d .back-btn,
+      .detail-gallery-d .fav-btn {
+        position: absolute; top: 16px;
+        width: 36px; height: 36px; border-radius: 50%;
+        background: rgba(0,0,0,0.45); border: none;
+        font-size: 18px; cursor: pointer; color: white;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .detail-gallery-d .back-btn { left: 16px; }
+      .detail-gallery-d .fav-btn  { right: 16px; }
+
+      /* Remove the hero's negative-margin overlap trick on desktop */
+      .detail-left .detail-body { margin-top: 0; }
+
+      /* ── Reserve Panel card ── */
+      .reserve-panel {
+        background: #fff;
+        border: 1px solid rgba(57,18,18,0.15);
+        border-radius: var(--radius);
+        padding: 24px;
+        box-shadow: 0 4px 32px rgba(0,0,0,0.08);
+      }
+      .rp-title {
+        font-size: 18px; font-weight: 700; color: var(--black);
+        margin: 0 0 20px; letter-spacing: 0.3px;
+      }
+      .rp-section { margin-bottom: 18px; }
+      .rp-row {
+        display: flex; align-items: center;
+        justify-content: space-between;
+      }
+      .rp-label {
+        font-size: 12px; font-weight: 600; text-transform: uppercase;
+        letter-spacing: 0.8px; color: var(--gray); margin-bottom: 8px;
+      }
+      .rp-row .rp-label { margin-bottom: 0; }
+
+      /* Date chips — horizontal scroll */
+      .rp-date-grid {
+        display: flex; gap: 6px;
+        overflow-x: auto; padding-bottom: 4px;
+        scrollbar-width: none;
+      }
+      .rp-date-grid::-webkit-scrollbar { display: none; }
+      .rp-date-cell {
+        flex: 0 0 44px; height: 54px;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 2px;
+        border-radius: 10px; border: 1.5px solid rgba(57,18,18,0.15);
+        cursor: pointer; transition: background 0.15s, border-color 0.15s;
+        background: var(--card);
+      }
+      .rp-date-cell:hover { border-color: var(--gold); }
+      .rp-date-cell.active {
+        background: var(--border); border-color: var(--border);
+        color: var(--card);
+      }
+      .rp-day  { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+      .rp-num  { font-size: 15px; font-weight: 700; }
+
+      /* Time buttons — 3 col grid */
+      .rp-time-grid {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+      }
+      .rp-time-btn {
+        padding: 8px 4px; text-align: center; font-size: 13px; font-weight: 500;
+        border-radius: 8px; border: 1.5px solid rgba(57,18,18,0.15);
+        cursor: pointer; transition: background 0.15s, border-color 0.15s;
+        background: var(--card); color: var(--black);
+      }
+      .rp-time-btn:hover:not(.unavailable) { border-color: var(--gold); }
+      .rp-time-btn.active {
+        background: var(--border); border-color: var(--border); color: var(--card);
+      }
+      .rp-time-btn.unavailable {
+        opacity: 0.35; cursor: not-allowed; pointer-events: none;
+      }
+
+      /* Guest counter */
+      .rp-counter {
+        display: flex; align-items: center; gap: 14px;
+      }
+      .rp-counter-btn {
+        width: 32px; height: 32px; border-radius: 50%;
+        border: 1.5px solid var(--border); background: none;
+        font-size: 18px; line-height: 1; cursor: pointer; color: var(--border);
+        display: flex; align-items: center; justify-content: center;
+        transition: background 0.15s;
+      }
+      .rp-counter-btn:hover:not(:disabled) { background: rgba(57,18,18,0.08); }
+      .rp-counter-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+      .rp-counter-val {
+        font-size: 18px; font-weight: 700; color: var(--black);
+        min-width: 24px; text-align: center;
+      }
+
+      /* Seating pill buttons */
+      .rp-seat-grid {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+      }
+      .rp-seat-btn {
+        padding: 9px 6px; font-size: 12px; font-weight: 600; text-align: center;
+        border-radius: 10px; border: 1.5px solid rgba(57,18,18,0.15);
+        background: var(--card); color: var(--black); cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+        letter-spacing: 0.2px;
+      }
+      .rp-seat-btn:hover { border-color: var(--gold); }
+      .rp-seat-btn.active {
+        background: var(--border); border-color: var(--border); color: var(--card);
+      }
+
+      /* CTA button inside panel */
+      .rp-cta { margin-top: 8px; }
+
+    }

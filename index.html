@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Dinery — Fine Dining Reservations</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg?v=3">
-  <link rel="stylesheet" href="style.css?v=14">
+  <link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 <div id="app">
@@ -409,39 +409,96 @@
        RESTAURANT DETAIL
   ══════════════════════════════ -->
   <div id="screen-detail" class="screen">
+    <!-- Mobile-only hero (hidden on desktop, desktop gallery is inside detail-left) -->
     <div class="detail-hero">
       <img id="detailImg" src="" alt="">
       <div class="overlay"></div>
       <button class="back-btn" onclick="goBack('home')">&#8592;</button>
       <button class="fav-btn" id="favBtn" onclick="toggleFav()">♡</button>
     </div>
+
     <div class="scroll-content">
-      <div class="detail-body">
-        <div class="cuisine-tag" id="detailCuisine"></div>
-        <h1 id="detailName"></h1>
-        <p id="detailDesc" style="margin-top:8px;font-size:14px"></p>
-        <div class="detail-stats">
-          <div class="stat-item"><div class="val" id="detailRating"></div><div class="lbl">Rating</div></div>
-          <div class="stat-item"><div class="val" id="detailDist"></div><div class="lbl">Distance</div></div>
-          <div class="stat-item"><div class="val" id="detailPrice"></div><div class="lbl">Avg. price</div></div>
-          <div class="stat-item"><div class="val" id="detailTime"></div><div class="lbl">Open until</div></div>
+      <div class="detail-layout">
+
+        <!-- ── Left column: gallery + info + tabs ── -->
+        <div class="detail-left">
+
+          <!-- Desktop-only gallery (hidden on mobile) -->
+          <div class="detail-gallery-d">
+            <img id="detailImgD" src="" alt="">
+            <div class="overlay"></div>
+            <button class="back-btn" onclick="goBack('home')">&#8592;</button>
+            <button class="fav-btn" id="favBtnD" onclick="toggleFav()">♡</button>
+          </div>
+
+          <div class="detail-body">
+            <div class="cuisine-tag" id="detailCuisine"></div>
+            <h1 id="detailName"></h1>
+            <p id="detailDesc" style="margin-top:8px;font-size:14px"></p>
+            <div class="detail-stats">
+              <div class="stat-item"><div class="val" id="detailRating"></div><div class="lbl">Rating</div></div>
+              <div class="stat-item"><div class="val" id="detailDist"></div><div class="lbl">Distance</div></div>
+              <div class="stat-item"><div class="val" id="detailPrice"></div><div class="lbl">Avg. price</div></div>
+              <div class="stat-item"><div class="val" id="detailTime"></div><div class="lbl">Open until</div></div>
+            </div>
+            <div class="menu-tabs">
+              <div class="menu-tab active" onclick="switchTab(this,'menu')">Menu</div>
+              <div class="menu-tab" onclick="switchTab(this,'info')">Info</div>
+              <div class="menu-tab" onclick="switchTab(this,'reviews')">Reviews</div>
+            </div>
+            <div id="tab-menu"><div id="menuItems"></div></div>
+            <div id="tab-info" style="display:none">
+              <div class="summary-row"><span>Address</span><span class="val" id="detailAddress"></span></div>
+              <div class="summary-row" style="margin-top:10px"><span>Phone</span><span class="val" id="detailPhone"></span></div>
+              <div class="summary-row" style="margin-top:10px"><span>Hours</span><span class="val">12:00 – 23:00</span></div>
+              <div class="summary-row" style="margin-top:10px"><span>Dress Code</span><span class="val">Smart Casual</span></div>
+            </div>
+            <div id="tab-reviews" style="display:none"><div id="reviewsList"></div></div>
+          </div>
         </div>
-        <div class="menu-tabs">
-          <div class="menu-tab active" onclick="switchTab(this,'menu')">Menu</div>
-          <div class="menu-tab" onclick="switchTab(this,'info')">Info</div>
-          <div class="menu-tab" onclick="switchTab(this,'reviews')">Reviews</div>
+
+        <!-- ── Right column: sticky reservation panel (desktop only) ── -->
+        <div class="detail-right">
+          <div class="reserve-panel">
+            <h3 class="rp-title">Reserve a Table</h3>
+
+            <div class="rp-section">
+              <div class="rp-label">Date</div>
+              <div class="rp-date-grid" id="rpDateGrid"></div>
+            </div>
+
+            <div class="rp-section">
+              <div class="rp-label">Time</div>
+              <div class="rp-time-grid" id="rpTimeGrid"></div>
+            </div>
+
+            <div class="rp-section rp-row">
+              <div class="rp-label">Guests</div>
+              <div class="rp-counter">
+                <button class="rp-counter-btn" id="rpBtnMinus" onclick="rpChangeGuests(-1)">−</button>
+                <span class="rp-counter-val" id="rpGuestCount">2</span>
+                <button class="rp-counter-btn" id="rpBtnPlus" onclick="rpChangeGuests(1)">+</button>
+              </div>
+            </div>
+
+            <div class="rp-section">
+              <div class="rp-label">Seating</div>
+              <div class="rp-seat-grid" id="rpSeatGrid">
+                <button class="rp-seat-btn" onclick="rpSelectSeat(this,'terrace')">Terrace</button>
+                <button class="rp-seat-btn" onclick="rpSelectSeat(this,'main')">Main Hall</button>
+                <button class="rp-seat-btn" onclick="rpSelectSeat(this,'vip')">VIP Room</button>
+              </div>
+            </div>
+
+            <button class="btn-primary rp-cta" id="rpCta" onclick="startBookingFromPanel()" disabled>Reserve a Table</button>
+          </div>
         </div>
-        <div id="tab-menu"><div id="menuItems"></div></div>
-        <div id="tab-info" style="display:none">
-          <div class="summary-row"><span>Address</span><span class="val" id="detailAddress"></span></div>
-          <div class="summary-row" style="margin-top:10px"><span>Phone</span><span class="val" id="detailPhone"></span></div>
-          <div class="summary-row" style="margin-top:10px"><span>Hours</span><span class="val">12:00 – 23:00</span></div>
-          <div class="summary-row" style="margin-top:10px"><span>Dress Code</span><span class="val">Smart Casual</span></div>
-        </div>
-        <div id="tab-reviews" style="display:none"><div id="reviewsList"></div></div>
+
       </div>
     </div>
-    <div class="cta-wrap">
+
+    <!-- Mobile-only CTA (hidden on desktop — panel serves this purpose) -->
+    <div class="cta-wrap detail-mobile-cta">
       <button class="btn-primary" onclick="startBooking()">Reserve a Table</button>
     </div>
   </div>
@@ -853,6 +910,6 @@
 <script type="module" src="firebase-config.js?v=14"></script>
 <script src="push.js?v=1"></script>
 <script src="email.js?v=8"></script>
-<script src="app.js?v=34"></script>
+<script src="app.js?v=35"></script>
 </body>
 </html>

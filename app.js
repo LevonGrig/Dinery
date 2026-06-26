@@ -882,6 +882,10 @@ function openRestaurant(id) {
   document.getElementById('detailAddress').textContent = r.address;
   document.getElementById('detailPhone').textContent   = r.phone;
 
+  // Sync desktop gallery image
+  const imgD = document.getElementById('detailImgD');
+  if (imgD) imgD.src = r.img;
+
   document.getElementById('menuItems').innerHTML = r.menu.map(cat =>
     `<div class="section-label" style="margin-top:16px">${cat.cat}</div>` +
     cat.items.map(item =>
@@ -908,6 +912,23 @@ function openRestaurant(id) {
   document.getElementById('tab-menu').style.display    = '';
   document.getElementById('tab-info').style.display    = 'none';
   document.getElementById('tab-reviews').style.display = 'none';
+
+  // Initialise the desktop reservation panel
+  state.selectedDate    = null;
+  state.selectedTime    = null;
+  state.selectedSeating = null;
+  state.guestCount      = 2;
+  buildRpDateGrid();
+  buildRpTimeGrid();
+  const rpMinus = document.getElementById('rpBtnMinus');
+  const rpPlus  = document.getElementById('rpBtnPlus');
+  if (rpMinus) rpMinus.disabled = false;
+  if (rpPlus)  rpPlus.disabled  = false;
+  document.getElementById('rpGuestCount').textContent = '2';
+  document.querySelectorAll('.rp-seat-btn').forEach(b => b.classList.remove('active'));
+  const rpCta = document.getElementById('rpCta');
+  if (rpCta) rpCta.disabled = true;
+
   goScreen('detail');
 }
 
@@ -950,11 +971,14 @@ function persistFavourites() {
 }
 
 function updateFavBtn() {
-  const btn = document.getElementById('favBtn');
-  if (!btn || !state.selectedRestaurant) return;
-  const isFav     = state.favourites.includes(state.selectedRestaurant.id);
-  btn.textContent = isFav ? '♥' : '♡';
-  btn.style.color = isFav ? '#e05555' : 'white';
+  if (!state.selectedRestaurant) return;
+  const isFav = state.favourites.includes(state.selectedRestaurant.id);
+  ['favBtn', 'favBtnD'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.textContent = isFav ? '♥' : '♡';
+    btn.style.color = isFav ? '#e05555' : 'white';
+  });
 }
 
 function refreshCards() {
@@ -1095,6 +1119,114 @@ function selectTime(el, time) {
 
 function checkDateTimeReady() {
   document.getElementById('btnDateTime').disabled = !(state.selectedDate && state.selectedTime);
+}
+
+// ── Desktop reservation panel ─────────────────────────────────────────────────
+
+function buildRpDateGrid() {
+  const days  = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const today = new Date();
+  let html = '';
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const iso     = localISO(d);
+    const isSel   = iso === state.selectedDate;
+    html += `<div class="rp-date-cell${isSel ? ' active' : ''}" onclick="rpSelectDate(this,'${iso}')">
+      <div class="rp-day">${days[d.getDay()]}</div>
+      <div class="rp-num">${d.getDate()}</div>
+    </div>`;
+  }
+  const grid = document.getElementById('rpDateGrid');
+  if (grid) grid.innerHTML = html;
+}
+
+function buildRpTimeGrid() {
+  const now     = new Date();
+  const isToday = state.selectedDate === localISO(now);
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const html = TIMES.map(t => {
+    const [h, m] = t.split(':').map(Number);
+    const past   = isToday && (h * 60 + m) <= nowMins;
+    const isSel  = t === state.selectedTime;
+    return `<div class="rp-time-btn${past ? ' unavailable' : ''}${isSel ? ' active' : ''}"
+      ${past ? '' : `onclick="rpSelectTime(this,'${t}')"`}>${t}</div>`;
+  }).join('');
+  const grid = document.getElementById('rpTimeGrid');
+  if (grid) grid.innerHTML = html;
+}
+
+function rpSelectDate(el, date) {
+  document.querySelectorAll('#rpDateGrid .rp-date-cell').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  state.selectedDate = date;
+  state.selectedTime = null;
+  buildRpTimeGrid();
+  checkRpReady();
+}
+
+function rpSelectTime(el, time) {
+  document.querySelectorAll('#rpTimeGrid .rp-time-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  state.selectedTime = time;
+  checkRpReady();
+}
+
+function rpChangeGuests(delta) {
+  const r       = state.selectedRestaurant;
+  const allSeats = (r?.halls || []).flatMap(h => (h.tables || []).map(t => t.seats));
+  const max     = allSeats.length ? Math.max(...allSeats) : 20;
+  state.maxGuests  = max;
+  state.guestCount = Math.max(1, Math.min(max, state.guestCount + delta));
+  const el = document.getElementById('rpGuestCount');
+  if (el) el.textContent = state.guestCount;
+  const minus = document.getElementById('rpBtnMinus');
+  const plus  = document.getElementById('rpBtnPlus');
+  if (minus) minus.disabled = state.guestCount <= 1;
+  if (plus)  plus.disabled  = state.guestCount >= max;
+}
+
+function rpSelectSeat(el, type) {
+  document.querySelectorAll('#rpSeatGrid .rp-seat-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  state.selectedSeating = type;
+  checkRpReady();
+}
+
+function checkRpReady() {
+  const btn = document.getElementById('rpCta');
+  if (btn) btn.disabled = !(state.selectedDate && state.selectedTime && state.selectedSeating);
+}
+
+async function startBookingFromPanel() {
+  if (!state.selectedRestaurant) return;
+  if (!state.selectedDate || !state.selectedTime || !state.selectedSeating) {
+    showToast('Please select date, time and seating');
+    return;
+  }
+  const btn = document.getElementById('rpCta');
+  if (btn) { btn.disabled = true; btn.textContent = 'Please wait…'; }
+
+  if (!state.user) {
+    try {
+      const cred = await auth.signInAnonymously();
+      state.user = { uid: cred.user.uid, isAnonymous: true, name: '', phone: '', email: '' };
+    } catch(e) {
+      console.error('Anonymous sign-in failed:', e);
+    }
+  }
+
+  const r = state.selectedRestaurant;
+  const allSeats = (r?.halls || []).flatMap(h => (h.tables || []).map(t => t.seats));
+  state.maxGuests = allSeats.length ? Math.max(...allSeats) : 20;
+  state.selectedHallRemaining = null;
+
+  document.getElementById('bookingRestName').textContent = r.name;
+  populateSummary();
+  validateForm();
+  goScreen('book-details');
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Reserve a Table'; }
 }
 
 // Show each hall with its REAL availability for the chosen party size and slot:
