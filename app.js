@@ -925,6 +925,11 @@ function renderSaved() {
 // ── Booking Flow ──────────────────────────────────────────────────────────────
 function startBooking() {
   if (!state.selectedRestaurant) return;
+  if (!state.user) {
+    showToast('Please sign in to make a reservation.');
+    goScreen('signin');
+    return;
+  }
   state.selectedDate    = null;
   state.selectedTime    = null;
   state.selectedSeating = null;
@@ -1214,8 +1219,6 @@ async function confirmBooking() {
   }
   state.reservations.unshift(booking);
   persistReservations();
-  // Guests keep reservations in memory for this visit only — they're prompted
-  // to create an account after booking so future bookings sync to the cloud
 
   state.lastBookingName  = name;
   state.lastBookingPhone = phone;
@@ -1238,10 +1241,6 @@ async function confirmBooking() {
   document.getElementById('confName').textContent     = name;
   document.getElementById('confRef').textContent      = ref;
   goScreen('confirmed');
-
-  if (!state.user && localStorage.getItem('dn_noask') !== 'true') {
-    setTimeout(showSaveModal, 700);
-  }
 }
 
 // ── Reservations ──────────────────────────────────────────────────────────────
@@ -1367,28 +1366,6 @@ function persistReservations() {
     console.error('Reservation update failed:', e);
     showToast('Update failed — check your connection');
   });
-}
-
-// ── Save-credentials modal ────────────────────────────────────────────────────
-function showSaveModal() {
-  document.getElementById('save-modal').classList.add('open');
-}
-function hideSaveModal() {
-  document.getElementById('save-modal').classList.remove('open');
-}
-function savePromptYes() {
-  hideSaveModal();
-  document.getElementById('su-name').value  = state.lastBookingName  || '';
-  document.getElementById('su-phone').value = state.lastBookingPhone || '';
-  document.getElementById('su-email').value = state.lastBookingEmail || '';
-  document.getElementById('su-password').value = '';
-  ['err-su-name','err-su-phone','err-su-email','err-su-password'].forEach(clearErr);
-  goScreen('signup');
-}
-function savePromptLater() { hideSaveModal(); }
-function savePromptNo() {
-  localStorage.setItem('dn_noask', 'true');
-  hideSaveModal();
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
