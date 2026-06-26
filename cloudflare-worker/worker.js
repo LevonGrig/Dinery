@@ -104,7 +104,7 @@ export default {
 // Uses the service-account OAuth token so Firebase returns the raw link instead
 // of sending their own branded email.
 async function generatePasswordResetLink(env, email) {
-  const token = await getAccessToken(env);
+  const token = await getAccessToken(env, 'https://www.googleapis.com/auth/identitytoolkit');
   const res = await fetch(
     `https://identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts:sendOobCode`,
     {
@@ -187,13 +187,13 @@ function passwordResetHtml(email, resetUrl) {
 }
 
 // ── Service-account JWT → access token (shared with scheduler pattern) ─────────
-async function getAccessToken(env) {
+async function getAccessToken(env, scope = 'https://www.googleapis.com/auth/cloud-platform') {
   const sa  = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT);
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: 'RS256', typ: 'JWT' };
   const claim  = {
     iss: sa.client_email,
-    scope: 'https://www.googleapis.com/auth/cloud-platform',
+    scope,
     aud: 'https://oauth2.googleapis.com/token',
     iat: now, exp: now + 3600,
   };
