@@ -58,14 +58,24 @@ export default {
       if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
         return json({ error: 'Invalid email' }, 400, cors);
       }
+      if (!env.GOOGLE_SERVICE_ACCOUNT) {
+        console.error('password-reset: GOOGLE_SERVICE_ACCOUNT secret is not set');
+        return json({ error: 'Server not configured (missing GOOGLE_SERVICE_ACCOUNT)' }, 500, cors);
+      }
       try {
         const link = await generatePasswordResetLink(env, email);
-        await sendResend(env, email, 'Reset your Dinery password', passwordResetHtml(email, link));
+        console.log('password-reset: generated link for', email);
+        const resendRes = await sendResend(env, email, 'Reset your Dinery password', passwordResetHtml(email, link));
+        const resendBody = await resendRes.text();
+        if (!resendRes.ok) {
+          console.error('password-reset: Resend error', resendRes.status, resendBody);
+          return json({ error: 'Email delivery failed', detail: resendBody }, 502, cors);
+        }
+        console.log('password-reset: email sent to', email);
       } catch (e) {
-        // Swallow errors — never reveal whether the email is registered
         console.error('password-reset error:', e.message);
+        return json({ error: e.message }, 500, cors);
       }
-      // Always return 200 (avoids user enumeration)
       return json({ ok: true }, 200, cors);
     }
 

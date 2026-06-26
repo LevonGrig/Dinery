@@ -1516,12 +1516,14 @@ async function doForgotPassword() {
   const btn = document.getElementById('fp-send-btn');
   btn.disabled = true; btn.textContent = 'Sending…';
   try {
-    // Worker generates the Firebase reset link and sends a branded email
-    // from noreply@dinery.am via Resend (instead of Firebase's default sender).
     await sendPasswordResetViaWorker(email);
   } catch (e) {
-    // Swallow errors — never reveal whether the email is registered (avoids user enumeration)
-    console.warn('sendPasswordResetViaWorker:', e.message);
+    console.error('sendPasswordResetViaWorker:', e.message);
+    btn.disabled = false; btn.textContent = 'Send Reset Link';
+    const errEl = document.getElementById('fp-email-error');
+    errEl.textContent = 'Could not send reset email — please try again or contact support.';
+    _setDisplay('fp-email-error', true);
+    return;
   }
   btn.disabled = false; btn.textContent = 'Send Reset Link';
   _setDisplay('fp-email-form', false);
