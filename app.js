@@ -499,6 +499,74 @@ async function doSignIn() {
   goScreen(state.prevScreen === 'profile' ? 'profile' : 'home');
 }
 
+// Google / Apple sign-in. If the user is currently a guest (anonymous), the
+// provider is linked so the same UID and any reservations are preserved.
+async function doSocialSignIn(provider) {
+  // Preserve guest reservations across the anonymous → real upgrade.
+  const isUpgrade        = auth.currentUser?.isAnonymous;
+  const existingBookings = isUpgrade ? [...state.reservations] : [];
+
+  let cred;
+  try {
+    cred = await auth.signInWithProvider(provider);
+  } catch(err) {
+    if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+      return; // user simply closed the popup — no error toast
+    }
+    if (err.code === 'auth/account-exists-with-different-credential') {
+      showToast('That email is already registered with a different sign-in method.');
+      return;
+    }
+    console.error('Social sign-in failed:', err);
+    showToast('Sign-in failed. Please try again.');
+    return;
+  }
+
+  const fbUser = cred.user;
+  const uid    = fbUser.uid;
+  const email  = fbUser.email || '';
+  const name   = fbUser.displayName || (email ? email.split('@')[0] : '');
+
+  // Is this a brand-new account (no Firestore profile yet)?
+  let isNew = false;
+  try {
+    const doc = await db.collection('users').doc(uid).get();
+    isNew = !doc.exists || !((doc.data() || {}).email);
+  } catch(e) { /* treat as existing on read error */ }
+
+  await loadUserData(uid, email);
+  // Seed name/email from the provider on first sign-in.
+  if (!state.user.name && name)  state.user.name  = name;
+  if (!state.user.email && email) state.user.email = email;
+
+  if (isNew) {
+    state.reservations = existingBookings.length ? existingBookings : state.reservations;
+    try {
+      await db.collection('users').doc(uid).set({
+        name: state.user.name || '', phone: state.user.phone || '', email,
+        savedRestaurants: [...state.favourites],
+        reservations: state.reservations,
+      }, { merge: true });
+    } catch(e) { console.error('Failed to save social profile:', e); }
+    if (email) sendWelcomeEmail(state.user.name || 'there', email);
+    showToast('Welcome to Dinery, ' + (state.user.name || 'there').split(' ')[0] + ' 👋');
+  } else {
+    showToast('Welcome back, ' + (state.user.name || email || 'there').split(' ')[0] + ' 👋');
+  }
+
+  if (state.pendingSaveId !== null) {
+    if (!state.favourites.includes(state.pendingSaveId)) {
+      state.favourites.push(state.pendingSaveId);
+      persistFavourites();
+    }
+    state.pendingSaveId = null;
+  }
+
+  renderProfile(); renderHome(); refreshCards();
+  goScreen(state.prevScreen === 'confirmed' ? 'confirmed'
+         : state.prevScreen === 'profile'   ? 'profile' : 'home');
+}
+
 async function doSignOut() {
   if (!confirm('Sign out of Dinery?')) return;
   await auth.signOut();

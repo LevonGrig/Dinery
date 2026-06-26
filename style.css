@@ -245,6 +245,24 @@
       padding: 14px; font-size: 14px; cursor: pointer;
     }
 
+    /* Social sign-in (Google / Apple) */
+    .auth-divider {
+      display: flex; align-items: center; text-align: center;
+      color: var(--gray); font-size: 13px; margin: 18px 0;
+    }
+    .auth-divider::before, .auth-divider::after {
+      content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.12);
+    }
+    .auth-divider span { padding: 0 14px; }
+    .btn-social {
+      width: 100%; display: flex; align-items: center; justify-content: center;
+      gap: 10px; background: #fff; color: #1a1a1a; border: none;
+      border-radius: 50px; padding: 14px; font-size: 15px; font-weight: 600;
+      cursor: pointer; margin-bottom: 12px; transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn-social:active { transform: scale(0.98); opacity: 0.9; }
+    .btn-social svg { flex-shrink: 0; }
+
     .btn-cancel-booking {
       margin-top: 10px; background: none; color: var(--danger);
       border: 1px solid var(--danger); border-radius: 50px;

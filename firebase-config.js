@@ -3,7 +3,8 @@ import {
   getAuth, setPersistence, browserLocalPersistence,
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
   signOut, onAuthStateChanged, updatePassword, deleteUser,
-  signInAnonymously, linkWithCredential, EmailAuthProvider
+  signInAnonymously, linkWithCredential, EmailAuthProvider,
+  GoogleAuthProvider, OAuthProvider, signInWithPopup, linkWithPopup
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, deleteDoc, runTransaction,
@@ -38,6 +39,14 @@ window.auth = {
   signInWithEmailAndPassword:     (email, pw) => signInWithEmailAndPassword(_auth, email, pw),
   signInAnonymously:              ()          => signInAnonymously(_auth),
   signOut:                        ()          => signOut(_auth),
+  // Social sign-in (Google / Apple). If a guest (anonymous) is signed in we
+  // LINK the provider so the same UID + existing reservations are kept;
+  // otherwise it's a normal popup sign-in.
+  signInWithProvider: (name) => {
+    const p = makeProvider(name);
+    const cur = _auth.currentUser;
+    return (cur && cur.isAnonymous) ? linkWithPopup(cur, p) : signInWithPopup(_auth, p);
+  },
   get currentUser() {
     const u = _auth.currentUser;
     return u ? Object.assign(Object.create(u), {
@@ -54,6 +63,17 @@ window.auth = {
   },
 };
 window.EmailAuthProvider = EmailAuthProvider;
+
+function makeProvider(name) {
+  if (name === 'apple') {
+    const p = new OAuthProvider('apple.com');
+    p.addScope('email'); p.addScope('name');
+    return p;
+  }
+  const p = new GoogleAuthProvider();
+  p.setCustomParameters({ prompt: 'select_account' });
+  return p;
+}
 
 window.db = {
   collection: (name) => ({
