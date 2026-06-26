@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Dinery — Fine Dining Reservations</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg?v=3">
-  <link rel="stylesheet" href="style.css?v=13">
+  <link rel="stylesheet" href="style.css?v=14">
 </head>
 <body>
 <div id="app">
@@ -150,7 +150,10 @@
         <input type="email" id="si-email" placeholder="your@email.com" oninput="clearErr('err-si')">
       </div>
       <div class="form-group">
-        <label>Password</label>
+        <label style="display:flex;justify-content:space-between;align-items:center">
+          Password
+          <button onclick="goScreen('forgot-password')" style="background:none;border:none;color:var(--gold);font-size:13px;font-weight:600;cursor:pointer;padding:0;text-transform:none;letter-spacing:0">Forgot password?</button>
+        </label>
         <div class="pw-wrap">
           <input type="password" id="si-password" placeholder="Your password" oninput="clearErr('err-si')">
           <button class="pw-toggle" onclick="togglePw('si-password',this)">👁</button>
@@ -168,6 +171,151 @@
       </button>
       <div class="auth-link">
         Don't have an account? <button onclick="goScreen('signup')">Sign Up</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       FORGOT PASSWORD
+  ══════════════════════════════ -->
+  <div id="screen-forgot-password" class="screen" style="padding-bottom:0">
+    <div class="scroll-content">
+      <div class="auth-screen" style="justify-content:flex-start;padding-top:60px">
+        <button class="topbar-back" style="margin-bottom:24px;padding:0" onclick="goBack('signin')">&#8592;</button>
+        <div class="auth-title">Reset Password</div>
+        <div class="auth-sub">We'll help you get back into your account</div>
+
+        <!-- Tab switcher -->
+        <div class="fp-tabs">
+          <button id="fp-tab-email" class="fp-tab active" onclick="fpSwitchTab('email')">Email</button>
+          <button id="fp-tab-phone" class="fp-tab" onclick="fpSwitchTab('phone')">Phone</button>
+        </div>
+
+        <!-- ── EMAIL PATH ── -->
+        <div id="fp-email-wrap">
+          <!-- Form state -->
+          <div id="fp-email-form">
+            <div class="form-group" style="margin-top:8px">
+              <label>Email Address</label>
+              <input type="email" id="fp-email" placeholder="your@email.com">
+            </div>
+            <div class="field-error" id="fp-email-error" style="display:none;margin-bottom:10px"></div>
+            <button class="btn-primary" id="fp-send-btn" onclick="doForgotPassword()" style="margin-top:8px">Send Reset Link</button>
+          </div>
+          <!-- Success state -->
+          <div id="fp-email-sent" style="display:none;text-align:center;padding:28px 0">
+            <div style="font-size:52px;margin-bottom:16px">📬</div>
+            <h3 style="font-size:18px;margin-bottom:10px">Check your email</h3>
+            <p style="font-size:14px;color:var(--gray);line-height:1.6">
+              If an account exists with that email, a secure reset link has been sent. Check your inbox and spam folder.
+            </p>
+            <button class="btn-secondary" onclick="goScreen('signin')" style="margin-top:24px">Back to Sign In</button>
+          </div>
+        </div>
+
+        <!-- ── PHONE PATH ── -->
+        <div id="fp-phone-wrap" style="display:none">
+          <!-- Step 1: enter phone -->
+          <div id="fp-phone-step1">
+            <div class="form-group" style="margin-top:8px">
+              <label>Phone Number</label>
+              <div style="display:flex;gap:8px">
+                <select id="fp-cc" style="flex:0 0 90px;padding:14px 10px;border:1.5px solid var(--border);border-radius:12px;font-size:15px;background:var(--white);color:var(--dark);appearance:none;text-align:center">
+                  <option value="+374">🇦🇲 +374</option>
+                  <option value="+1">🇺🇸 +1</option>
+                  <option value="+44">🇬🇧 +44</option>
+                  <option value="+33">🇫🇷 +33</option>
+                  <option value="+49">🇩🇪 +49</option>
+                  <option value="+7">🇷🇺 +7</option>
+                  <option value="+91">🇮🇳 +91</option>
+                </select>
+                <input type="tel" id="fp-phone-num" placeholder="Phone number" style="flex:1">
+              </div>
+            </div>
+            <div class="field-error" id="fp-phone-error" style="display:none;margin-bottom:10px"></div>
+            <button class="btn-primary" id="fp-send-sms-btn" onclick="doSendSmsOtp()" style="margin-top:8px">Send Code</button>
+          </div>
+          <!-- Step 2: OTP -->
+          <div id="fp-otp-wrap" style="display:none">
+            <p style="font-size:14px;color:var(--gray);margin:16px 0 10px;line-height:1.5">Enter the 6-digit code sent to your phone.</p>
+            <div class="form-group">
+              <label>Verification Code</label>
+              <input type="number" id="fp-otp-input" placeholder="123456" maxlength="6" style="letter-spacing:4px;font-size:20px;text-align:center">
+            </div>
+            <div class="field-error" id="fp-otp-error" style="display:none;margin-bottom:10px"></div>
+            <button class="btn-primary" id="fp-verify-btn" onclick="doVerifySmsOtp()" style="margin-top:8px">Verify Code</button>
+          </div>
+          <!-- Step 3: New password (after OTP verified) -->
+          <div id="fp-new-pw-wrap" style="display:none">
+            <p style="font-size:14px;color:var(--gray);margin:16px 0 10px;line-height:1.5">Phone verified. Set a new password for your account.</p>
+            <div class="form-group">
+              <label>New Password</label>
+              <div class="pw-wrap">
+                <input type="password" id="fp-pw1" placeholder="Min. 6 characters">
+                <button class="pw-toggle" onclick="togglePw('fp-pw1',this)">👁</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Confirm New Password</label>
+              <div class="pw-wrap">
+                <input type="password" id="fp-pw2" placeholder="Repeat password">
+                <button class="pw-toggle" onclick="togglePw('fp-pw2',this)">👁</button>
+              </div>
+            </div>
+            <div class="field-error" id="fp-pw-error" style="display:none;margin-bottom:10px"></div>
+            <button class="btn-primary" id="fp-set-pw-btn" onclick="doSetPasswordViaPhone()" style="margin-top:8px">Set New Password</button>
+          </div>
+          <!-- Invisible reCAPTCHA anchor -->
+          <div id="recaptcha-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       RESET PASSWORD (email link)
+  ══════════════════════════════ -->
+  <div id="screen-reset-password" class="screen" style="padding-bottom:0">
+    <div class="scroll-content">
+      <div class="auth-screen" style="justify-content:flex-start;padding-top:60px">
+        <button class="topbar-back" style="margin-bottom:24px;padding:0" onclick="goScreen('signin')">&#8592;</button>
+        <div class="auth-title">Set New Password</div>
+
+        <!-- Status message (verifying / error) -->
+        <p id="rp-status" style="font-size:14px;line-height:1.6;margin-bottom:16px;color:var(--gray)"></p>
+
+        <!-- Form (shown after code verified) -->
+        <div id="rp-form" style="display:none;width:100%">
+          <p style="font-size:14px;color:var(--gray);margin-bottom:20px">
+            Resetting password for <strong id="rp-email-display" style="color:var(--dark)"></strong>
+          </p>
+          <div class="form-group">
+            <label>New Password</label>
+            <div class="pw-wrap">
+              <input type="password" id="rp-pw1" placeholder="Min. 6 characters">
+              <button class="pw-toggle" onclick="togglePw('rp-pw1',this)">👁</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Confirm New Password</label>
+            <div class="pw-wrap">
+              <input type="password" id="rp-pw2" placeholder="Repeat password">
+              <button class="pw-toggle" onclick="togglePw('rp-pw2',this)">👁</button>
+            </div>
+          </div>
+          <div class="field-error" id="rp-error" style="display:none;margin-bottom:10px"></div>
+          <button class="btn-primary" id="rp-submit-btn" onclick="doResetPassword()" style="margin-top:8px">Set New Password</button>
+        </div>
+
+        <!-- Success state -->
+        <div id="rp-success" style="display:none;text-align:center;padding:28px 0;width:100%">
+          <div style="font-size:52px;margin-bottom:16px">🎉</div>
+          <h3 style="font-size:18px;margin-bottom:10px">Password Updated!</h3>
+          <p style="font-size:14px;color:var(--gray);line-height:1.6">
+            Your password has been changed successfully. You can now sign in with your new password.
+          </p>
+          <button class="btn-primary" onclick="goScreen('signin')" style="margin-top:24px">Sign In</button>
+        </div>
       </div>
     </div>
   </div>
@@ -610,7 +758,8 @@
         </div>
 
         <button class="btn-primary" onclick="saveProfile()" style="margin-top:8px">Save Changes</button>
-        <button onclick="openDeleteModal()" style="margin-top:12px;width:100%;padding:14px;border:2px solid #b91c1c;border-radius:12px;background:transparent;color:#b91c1c;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:.3px">Delete Account</button>
+        <button onclick="goScreen('forgot-password')" style="margin-top:12px;width:100%;padding:14px;border:1.5px solid var(--border);border-radius:12px;background:transparent;color:var(--dark);font-size:15px;font-weight:600;cursor:pointer;letter-spacing:.3px">🔑 Reset Password</button>
+        <button onclick="openDeleteModal()" style="margin-top:10px;width:100%;padding:14px;border:2px solid #b91c1c;border-radius:12px;background:transparent;color:#b91c1c;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:.3px">Delete Account</button>
       </div>
     </div>
   </div>
@@ -701,9 +850,9 @@
 </div>
 
 <!-- Firebase (modular SDK, loaded as a module so it can target the named database) -->
-<script type="module" src="firebase-config.js?v=13"></script>
+<script type="module" src="firebase-config.js?v=14"></script>
 <script src="push.js?v=1"></script>
 <script src="email.js?v=7"></script>
-<script src="app.js?v=30"></script>
+<script src="app.js?v=31"></script>
 </body>
 </html>

@@ -196,7 +196,7 @@ async function releaseBookingSlot(b) {
 }
 
 // ── State ────────────────────────────────────────────────────────────────────
-const AUTH_SCREENS    = ['signup','signin'];
+const AUTH_SCREENS    = ['signup','signin','forgot-password','reset-password'];
 const BOOKING_SCREENS = ['book-datetime','book-seating','book-guests','book-details','confirmed'];
 
 let state = {
@@ -288,11 +288,17 @@ document.addEventListener('DOMContentLoaded', () => {
 // so a tap opens the app straight into that booking's manage/cancel/modify flow.
 function parseDeepLink() {
   try {
-    const p      = new URLSearchParams(location.search);
-    const ref    = p.get('r');
-    const action = p.get('a');
+    const p       = new URLSearchParams(location.search);
+    const ref     = p.get('r');
+    const action  = p.get('a');
+    const mode    = p.get('mode');
+    const oobCode = p.get('oobCode');
     if (ref && ['view', 'modify', 'cancel'].includes(action)) {
       state.pendingDeepLink = { ref, action };
+    } else if (mode === 'resetPassword' && oobCode) {
+      // Firebase password-reset email link — route to the reset screen
+      state.pendingDeepLink = { mode: 'resetPassword', oobCode };
+      goScreen('reset-password');
     }
   } catch (e) { /* ignore malformed URLs */ }
 }
@@ -393,15 +399,17 @@ function navigate(id, isBack) {
     document.getElementById('bottomnav').style.display = hideNav ? 'none' : 'flex';
   }
 
-  if (id === 'home')         renderHome();
-  if (id === 'reservations') { state.changingBookingRef = null; renderReservations(); }
-  if (id === 'profile')      renderProfile();
-  if (id === 'saved')        renderSaved();
-  if (id === 'book-guests')   initGuests();
-  if (id === 'book-seating')  renderSeating();
-  if (id === 'book-details')  populateSummary();
-  if (id === 'admin')        renderAdmin();
-  if (id === 'edit-profile') populateEditForm();
+  if (id === 'home')              renderHome();
+  if (id === 'reservations')      { state.changingBookingRef = null; renderReservations(); }
+  if (id === 'profile')           renderProfile();
+  if (id === 'saved')             renderSaved();
+  if (id === 'book-guests')       initGuests();
+  if (id === 'book-seating')      renderSeating();
+  if (id === 'book-details')      populateSummary();
+  if (id === 'admin')             renderAdmin();
+  if (id === 'edit-profile')      populateEditForm();
+  if (id === 'forgot-password')   initForgotPassword();
+  if (id === 'reset-password')    initResetPasswordScreen();
 }
 
 function goSearch() {
@@ -1462,6 +1470,224 @@ function persistReservations() {
     console.error('Reservation update failed:', e);
     showToast('Update failed — check your connection');
   });
+}
+
+// ── Forgot / Reset Password ───────────────────────────────────────────────────
+let _forgotTab     = 'email';  // 'email' | 'phone'
+let _confirmResult = null;     // returned by signInWithPhoneNumber
+let _resetOobCode  = null;     // oobCode parsed from the URL
+
+function initForgotPassword() {
+  _forgotTab = 'email';
+  _confirmResult = null;
+  // Reset email tab
+  const emailInput = document.getElementById('fp-email');
+  if (emailInput) emailInput.value = '';
+  _setDisplay('fp-email-error', false);
+  _setDisplay('fp-email-sent', false);
+  _setDisplay('fp-email-form', true);
+  // Reset phone tab
+  _setDisplay('fp-phone-step1', true);
+  _setDisplay('fp-otp-wrap', false);
+  _setDisplay('fp-new-pw-wrap', false);
+  _setDisplay('fp-phone-error', false);
+  const btn = document.getElementById('fp-send-btn');
+  if (btn) { btn.disabled = false; btn.textContent = 'Send Reset Link'; }
+  fpSwitchTab('email');
+}
+
+function fpSwitchTab(tab) {
+  _forgotTab = tab;
+  _setDisplay('fp-email-wrap', tab === 'email');
+  _setDisplay('fp-phone-wrap', tab === 'phone');
+  document.getElementById('fp-tab-email')?.classList.toggle('active', tab === 'email');
+  document.getElementById('fp-tab-phone')?.classList.toggle('active', tab === 'phone');
+}
+
+async function doForgotPassword() {
+  const email = document.getElementById('fp-email').value.trim();
+  const errEl = document.getElementById('fp-email-error');
+  if (!email || !/\S+@\S+\.\S+/.test(email)) {
+    errEl.textContent = 'Please enter a valid email address';
+    _setDisplay('fp-email-error', true);
+    return;
+  }
+  _setDisplay('fp-email-error', false);
+  const btn = document.getElementById('fp-send-btn');
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    // url: deep-link that opens the app after the user clicks the email link
+    await auth.sendPasswordResetEmail(email, { url: location.origin + location.pathname });
+  } catch (e) {
+    // Swallow errors — never reveal whether the email is registered (avoids user enumeration)
+    console.warn('sendPasswordResetEmail:', e.code);
+  }
+  btn.disabled = false; btn.textContent = 'Send Reset Link';
+  _setDisplay('fp-email-form', false);
+  _setDisplay('fp-email-sent', true);
+}
+
+async function doSendSmsOtp() {
+  const cc    = document.getElementById('fp-cc').value;
+  const phone = document.getElementById('fp-phone-num').value.trim().replace(/\D/g, '');
+  const errEl = document.getElementById('fp-phone-error');
+  if (!phone) {
+    errEl.textContent = 'Please enter your phone number';
+    _setDisplay('fp-phone-error', true);
+    return;
+  }
+  const fullPhone = cc + phone;
+  const btn = document.getElementById('fp-send-sms-btn');
+  btn.disabled = true; btn.textContent = 'Sending…';
+  _setDisplay('fp-phone-error', false);
+  try {
+    if (!window._recaptchaVerifier) {
+      window._recaptchaVerifier = auth.initRecaptcha('recaptcha-container');
+    }
+    _confirmResult = await auth.signInWithPhoneNumber(fullPhone, window._recaptchaVerifier);
+    _setDisplay('fp-phone-step1', false);
+    _setDisplay('fp-otp-wrap', true);
+  } catch (e) {
+    console.error('SMS OTP send failed:', e);
+    const msg = e.code === 'auth/invalid-phone-number'
+      ? 'Invalid phone number — include country code (e.g. +374 …)'
+      : e.code === 'auth/too-many-requests'
+      ? 'Too many attempts. Please try again later.'
+      : 'Could not send code. Check the number and try again.';
+    errEl.textContent = msg;
+    _setDisplay('fp-phone-error', true);
+    if (window._recaptchaVerifier) {
+      try { window._recaptchaVerifier.clear(); } catch (_) {}
+      window._recaptchaVerifier = null;
+    }
+  }
+  btn.disabled = false; btn.textContent = 'Send Code';
+}
+
+async function doVerifySmsOtp() {
+  if (!_confirmResult) return;
+  const code  = document.getElementById('fp-otp-input').value.trim();
+  const errEl = document.getElementById('fp-otp-error');
+  if (!/^\d{6}$/.test(code)) {
+    errEl.textContent = 'Enter the 6-digit code';
+    _setDisplay('fp-otp-error', true);
+    return;
+  }
+  const btn = document.getElementById('fp-verify-btn');
+  btn.disabled = true; btn.textContent = 'Verifying…';
+  _setDisplay('fp-otp-error', false);
+  try {
+    await _confirmResult.confirm(code);
+    // Now signed in via phone — show the new-password fields
+    _setDisplay('fp-otp-wrap', false);
+    _setDisplay('fp-new-pw-wrap', true);
+  } catch (e) {
+    console.error('OTP verify failed:', e);
+    const msg = e.code === 'auth/invalid-verification-code'
+      ? 'Incorrect code — please try again'
+      : 'Verification failed. Please try again.';
+    errEl.textContent = msg;
+    _setDisplay('fp-otp-error', true);
+  }
+  btn.disabled = false; btn.textContent = 'Verify Code';
+}
+
+async function doSetPasswordViaPhone() {
+  const pw1   = document.getElementById('fp-pw1').value;
+  const pw2   = document.getElementById('fp-pw2').value;
+  const errEl = document.getElementById('fp-pw-error');
+  _setDisplay('fp-pw-error', false);
+  if (pw1.length < 6) { errEl.textContent = 'Password must be at least 6 characters'; _setDisplay('fp-pw-error', true); return; }
+  if (pw1 !== pw2)    { errEl.textContent = 'Passwords do not match'; _setDisplay('fp-pw-error', true); return; }
+  const btn = document.getElementById('fp-set-pw-btn');
+  btn.disabled = true; btn.textContent = 'Updating…';
+  try {
+    await auth.currentUser.updatePassword(pw1);
+    showToast('Password updated successfully 🎉');
+    goScreen('profile');
+  } catch (e) {
+    console.error('updatePassword failed:', e);
+    errEl.textContent = e.code === 'auth/requires-recent-login'
+      ? 'For security, please sign in again before changing your password.'
+      : 'Update failed — please try again.';
+    _setDisplay('fp-pw-error', true);
+  }
+  btn.disabled = false; btn.textContent = 'Set New Password';
+}
+
+// ── Reset password (from Firebase email link) ─────────────────────────────────
+async function initResetPasswordScreen() {
+  // oobCode may arrive from parseDeepLink (initial load) or from navigate (if already parsed)
+  const dl = state.pendingDeepLink;
+  const oobFromState = (dl?.mode === 'resetPassword') ? dl.oobCode : null;
+  const oobFromUrl   = new URLSearchParams(location.search).get('oobCode');
+  const oobCode      = oobFromState || oobFromUrl || null;
+
+  const statusEl = document.getElementById('rp-status');
+  const formEl   = document.getElementById('rp-form');
+  const successEl= document.getElementById('rp-success');
+  if (!statusEl) return;
+
+  _setDisplay('rp-form', false);
+  _setDisplay('rp-success', false);
+  statusEl.textContent = '';
+  statusEl.style.color = '';
+
+  if (!oobCode) {
+    statusEl.textContent = 'No reset code found. Please use the link from your email.';
+    statusEl.style.color = 'var(--danger, #dc2626)';
+    return;
+  }
+  statusEl.textContent = 'Verifying reset link…';
+
+  try {
+    const email = await auth.verifyPasswordResetCode(oobCode);
+    _resetOobCode = oobCode;
+    document.getElementById('rp-email-display').textContent = email;
+    document.getElementById('rp-pw1').value = '';
+    document.getElementById('rp-pw2').value = '';
+    _setDisplay('rp-error', false);
+    statusEl.textContent = '';
+    _setDisplay('rp-form', true);
+    if (oobFromState) { state.pendingDeepLink = null; clearDeepLinkUrl(); }
+  } catch (e) {
+    _resetOobCode = null;
+    statusEl.textContent = 'This reset link has expired or has already been used. Please request a new one.';
+    statusEl.style.color = 'var(--danger, #dc2626)';
+  }
+}
+
+async function doResetPassword() {
+  if (!_resetOobCode) return;
+  const pw1   = document.getElementById('rp-pw1').value;
+  const pw2   = document.getElementById('rp-pw2').value;
+  const errEl = document.getElementById('rp-error');
+  _setDisplay('rp-error', false);
+  if (pw1.length < 6) { errEl.textContent = 'Password must be at least 6 characters'; _setDisplay('rp-error', true); return; }
+  if (pw1 !== pw2)    { errEl.textContent = 'Passwords do not match'; _setDisplay('rp-error', true); return; }
+  const btn = document.getElementById('rp-submit-btn');
+  btn.disabled = true; btn.textContent = 'Updating…';
+  try {
+    await auth.confirmPasswordReset(_resetOobCode, pw1);
+    _resetOobCode = null;
+    _setDisplay('rp-form', false);
+    _setDisplay('rp-success', true);
+  } catch (e) {
+    console.error('confirmPasswordReset failed:', e);
+    errEl.textContent =
+      (e.code === 'auth/expired-action-code' || e.code === 'auth/invalid-action-code')
+        ? 'This reset link has expired or has already been used.'
+        : e.code === 'auth/weak-password'
+        ? 'Password is too weak — use at least 6 characters.'
+        : 'Update failed. Please try again.';
+    _setDisplay('rp-error', true);
+  }
+  btn.disabled = false; btn.textContent = 'Set New Password';
+}
+
+function _setDisplay(id, visible) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = visible ? '' : 'none';
 }
 
 // ── In-app notifications ──────────────────────────────────────────────────────

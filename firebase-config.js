@@ -4,7 +4,9 @@ import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
   signOut, onAuthStateChanged, updatePassword, deleteUser,
   signInAnonymously, linkWithCredential, EmailAuthProvider,
-  GoogleAuthProvider, OAuthProvider, signInWithPopup, linkWithPopup
+  GoogleAuthProvider, OAuthProvider, signInWithPopup, linkWithPopup,
+  sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset,
+  RecaptchaVerifier, signInWithPhoneNumber
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, deleteDoc, runTransaction,
@@ -61,6 +63,11 @@ window.auth = {
     if (!u) throw new Error('No signed-in user');
     return deleteUser(u);
   },
+  sendPasswordResetEmail: (email, opts) => sendPasswordResetEmail(_auth, email, opts || {}),
+  verifyPasswordResetCode: (code)       => verifyPasswordResetCode(_auth, code),
+  confirmPasswordReset: (code, pw)      => confirmPasswordReset(_auth, code, pw),
+  initRecaptcha: (containerId) => new RecaptchaVerifier(_auth, containerId, { size: 'invisible' }),
+  signInWithPhoneNumber: (phone, verifier) => signInWithPhoneNumber(_auth, phone, verifier),
 };
 window.EmailAuthProvider = EmailAuthProvider;
 

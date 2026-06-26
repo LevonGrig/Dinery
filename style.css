@@ -523,6 +523,21 @@
 
     .scroll-content { overflow-y: auto; flex: 1; }
 
+    /* ── Forgot / Reset password tabs ── */
+    .fp-tabs {
+      display: flex; gap: 4px; margin: 18px 0 22px;
+      background: var(--cream-dark, #f5ede0); border-radius: 12px; padding: 4px;
+    }
+    .fp-tab {
+      flex: 1; padding: 10px; border: none; border-radius: 9px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      background: transparent; color: var(--gray); transition: all .2s;
+    }
+    .fp-tab.active {
+      background: var(--white, #fff); color: var(--dark);
+      box-shadow: 0 1px 6px rgba(0,0,0,.08);
+    }
+
     /* ── Notification bell badge ── */
     .notif-btn { position: relative; }
     .notif-badge {
