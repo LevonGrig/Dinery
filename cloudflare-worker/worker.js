@@ -106,7 +106,7 @@ export default {
 async function generatePasswordResetLink(env, email) {
   const token = await getAccessToken(env);
   const res = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${FIREBASE_API_KEY}`,
+    `https://identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts:sendOobCode`,
     {
       method: 'POST',
       headers: {
