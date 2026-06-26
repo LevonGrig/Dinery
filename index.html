@@ -55,6 +55,24 @@
   <!-- ══════════════════════════════
        SAVE CREDENTIALS MODAL
   ══════════════════════════════ -->
+  <div id="save-modal">
+    <div class="save-sheet">
+      <div class="sheet-handle"></div>
+      <div style="text-align:center; margin-bottom:24px">
+        <div style="font-size:48px; margin-bottom:14px">✨</div>
+        <h2 style="font-size:20px; margin-bottom:8px">Save your details?</h2>
+        <p style="font-size:14px; color:var(--gray); line-height:1.5">
+          Create a free account so your name, phone and email are filled in automatically next time you book.
+        </p>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px">
+        <button class="btn-primary"    onclick="savePromptYes()">Yes, save my details</button>
+        <button class="btn-secondary"  onclick="savePromptLater()">Ask me later</button>
+        <button class="btn-ghost"      onclick="savePromptNo()">Don't ask again</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ══════════════════════════════
        SIGN UP
   ══════════════════════════════ -->
@@ -658,6 +676,6 @@
 <script type="module" src="firebase-config.js?v=11"></script>
 <script src="push.js?v=1"></script>
 <script src="email.js?v=7"></script>
-<script src="app.js?v=28"></script>
+<script src="app.js?v=27"></script>
 </body>
 </html>
