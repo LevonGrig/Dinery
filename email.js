@@ -35,6 +35,22 @@ async function sendEmail({ to, subject, html }) {
   }
 }
 
+// Sends a branded password-reset email via the Worker (uses Firebase Admin to
+// generate the link, then Resend to deliver from noreply@dinery.am).
+async function sendPasswordResetViaWorker(email) {
+  if (!email) return;
+  if (!EMAIL_CONFIG.workerUrl || EMAIL_CONFIG.workerUrl.includes('YOUR-SUBDOMAIN')) return;
+  const res = await fetch(EMAIL_CONFIG.workerUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'password-reset', email }),
+  });
+  if (!res.ok) {
+    const err = await res.text().catch(() => '');
+    throw new Error(`Worker responded ${res.status}: ${err}`);
+  }
+}
+
 function buildCancellationEmailHTML(booking, restaurant, userName) {
   const phone    = '+37494115955';
   const imgUrl   = restaurant?.img   || '';
