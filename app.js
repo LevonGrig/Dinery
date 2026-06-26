@@ -250,13 +250,23 @@ document.addEventListener('DOMContentLoaded', () => {
   parseDeepLink();
 
   auth.onAuthStateChanged(async (firebaseUser) => {
-    if (firebaseUser) {
-      // Set minimal user immediately so UI unblocks (saves, etc.)
+    if (firebaseUser && !firebaseUser.isAnonymous) {
+      // Real signed-in user — load full profile
       state.user = { uid: firebaseUser.uid, name: '', phone: '', email: firebaseUser.email };
       await loadUserData(firebaseUser.uid, firebaseUser.email);
       renderHome();
       renderProfile();
       refreshCards();
+      if (state.currentScreen === 'reservations') renderReservations();
+    } else if (firebaseUser && firebaseUser.isAnonymous) {
+      // Anonymous guest — just load their reservations, show guest UI
+      state.user = { uid: firebaseUser.uid, isAnonymous: true, name: '', phone: '', email: '' };
+      try {
+        const doc = await db.collection('users').doc(firebaseUser.uid).get();
+        if (doc.exists) state.reservations = doc.data().reservations || [];
+      } catch(e) { /* ignore */ }
+      renderHome();
+      renderProfile();
       if (state.currentScreen === 'reservations') renderReservations();
     } else if (state.user) {
       state.user         = null;
@@ -412,8 +422,15 @@ async function doSignUp() {
   if (!ok) return;
 
   let cred;
+  const isUpgrade = auth.currentUser?.isAnonymous;
   try {
-    cred = await auth.createUserWithEmailAndPassword(email, password);
+    if (isUpgrade) {
+      // Convert the anonymous account to a real one — same UID, reservations stay intact
+      const credential = firebase.auth.EmailAuthProvider.credential(email, password);
+      cred = await auth.currentUser.linkWithCredential(credential);
+    } else {
+      cred = await auth.createUserWithEmailAndPassword(email, password);
+    }
   } catch(err) {
     if (err.code === 'auth/email-already-in-use') {
       showErr('err-su-email', 'An account with this email already exists — please sign in instead.');
@@ -425,12 +442,13 @@ async function doSignUp() {
     return;
   }
 
-  const uid = cred.user.uid;
-  state.user         = { uid, name, phone, email };
-  state.favourites   = [];
-  state.reservations = [];
+  const uid              = cred.user.uid;
+  const existingBookings = isUpgrade ? [...state.reservations] : [];
+  state.user             = { uid, name, phone, email };
+  state.favourites       = isUpgrade ? [...state.favourites] : [];
+  state.reservations     = existingBookings;
 
-  if (state.pendingSaveId !== null) {
+  if (!isUpgrade && state.pendingSaveId !== null) {
     state.favourites.push(state.pendingSaveId);
     state.pendingSaveId = null;
   }
@@ -439,8 +457,8 @@ async function doSignUp() {
     await db.collection('users').doc(uid).set({
       name, phone, email,
       savedRestaurants: [...state.favourites],
-      reservations: []
-    });
+      reservations: existingBookings
+    }, { merge: true });
   } catch(err) {
     console.error('Failed to create profile in Firestore:', err);
     showToast('Account created, but saving your profile failed — check your connection');
@@ -574,7 +592,7 @@ function populateEditForm() {
 function renderProfile() {
   const u = state.user;
   const adminRow = document.getElementById('adminRow');
-  if (u) {
+  if (u && !u.isAnonymous) {
     document.getElementById('profileAvatar').textContent = (u.name || u.email || 'U').charAt(0).toUpperCase();
     document.getElementById('profileName').textContent   = u.name || u.email;
     document.getElementById('profileEmail').textContent  = u.email;
@@ -669,7 +687,7 @@ function renderHome() {
   const hour   = new Date().getHours();
   const period = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   document.getElementById('homeGreetSub').textContent = period;
-  if (state.user) {
+  if (state.user && !state.user.isAnonymous) {
     document.getElementById('homeGreetH1').innerHTML =
       `Hi, <span>${(state.user.name || state.user.email || '').split(' ')[0]}</span> 👋`;
   } else {
@@ -923,8 +941,17 @@ function renderSaved() {
 }
 
 // ── Booking Flow ──────────────────────────────────────────────────────────────
-function startBooking() {
+async function startBooking() {
   if (!state.selectedRestaurant) return;
+  // Silently sign in as anonymous so the reservation is saved to Firestore
+  if (!state.user) {
+    try {
+      const cred = await auth.signInAnonymously();
+      state.user = { uid: cred.user.uid, isAnonymous: true, name: '', phone: '', email: '' };
+    } catch(e) {
+      console.error('Anonymous sign-in failed:', e);
+    }
+  }
   state.selectedDate    = null;
   state.selectedTime    = null;
   state.selectedSeating = null;
