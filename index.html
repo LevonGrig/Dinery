@@ -5,10 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Dinery — Fine Dining Reservations</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg?v=3">
-  <link rel="stylesheet" href="style.css?v=12">
+  <link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
 <div id="app">
+
+  <!-- ══════════════════════════════
+       NOTIFICATIONS PANEL
+  ══════════════════════════════ -->
+  <div id="notif-panel" style="display:none;position:fixed;inset:0;z-index:9990;background:rgba(0,0,0,.45);align-items:flex-end;justify-content:center" onclick="if(event.target===this)closeNotifications()">
+    <div class="notif-sheet">
+      <div class="sheet-handle"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <h2 style="font-size:18px;font-weight:700">Notifications</h2>
+        <button onclick="closeNotifications()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--gray);padding:4px">×</button>
+      </div>
+      <div id="notifList" class="notif-list"></div>
+    </div>
+  </div>
 
   <!-- ══════════════════════════════
        DELETE ACCOUNT MODAL
@@ -164,7 +178,9 @@
   <div id="screen-home" class="screen">
     <div class="topbar">
       <div class="logo">Din<span>ery</span></div>
-      <button class="topbar-action" onclick="showToast('Notifications coming soon')">🔔</button>
+      <button class="topbar-action notif-btn" onclick="openNotifications()">
+        🔔<span id="notifBadge" class="notif-badge" style="display:none">0</span>
+      </button>
     </div>
     <div class="scroll-content">
       <div class="greeting">
@@ -688,6 +704,6 @@
 <script type="module" src="firebase-config.js?v=13"></script>
 <script src="push.js?v=1"></script>
 <script src="email.js?v=7"></script>
-<script src="app.js?v=29"></script>
+<script src="app.js?v=30"></script>
 </body>
 </html>

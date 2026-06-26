@@ -210,6 +210,7 @@ let state = {
   guestCount         : 2,
   favourites         : [],
   reservations       : [],
+  notifications      : [],
   searchFilter       : 'All',
   user               : null,   // { uid?, name, phone, email }
   isAdmin            : false,  // true if the signed-in user's doc has admin == true
@@ -338,6 +339,7 @@ async function loadUserData(uid, email) {
       state.user         = { uid, name: d.name || '', phone: d.phone || '', email };
       state.favourites   = d.savedRestaurants || [];
       state.reservations = d.reservations || [];
+      state.notifications = d.notifications || [];
       state.isAdmin      = d.admin === true;
     } else {
       await db.collection('users').doc(uid).set({
@@ -1309,19 +1311,16 @@ async function confirmBooking() {
   }
   state.reservations.unshift(booking);
   persistReservations();
-  // Guests keep reservations in memory for this visit only — they're prompted
-  // to create an account after booking so future bookings sync to the cloud
 
   state.lastBookingName  = name;
   state.lastBookingPhone = phone;
   state.lastBookingEmail = document.getElementById('fieldEmail').value.trim();
 
-  // Email the right notice to whatever address was entered (works for guests
-  // too), falling back to the signed-in user's email: a "reservation updated"
-  // email after a modification, otherwise the booking-confirmation email.
   if (wasModification) {
+    addNotification('modified', 'Booking Updated', `${r.name} · ${dateStr} at ${state.selectedTime}`, ref);
     sendModifiedEmail(booking, state.lastBookingEmail);
   } else {
+    addNotification('confirmed', 'Booking Confirmed', `${r.name} · ${dateStr} at ${state.selectedTime}`, ref);
     sendConfirmationEmail(booking, state.lastBookingEmail);
   }
 
@@ -1433,6 +1432,7 @@ async function cancelReservation(ref) {
 
   state.reservations = state.reservations.filter(b => b.ref !== ref);
   persistReservations();
+  addNotification('cancelled', 'Booking Cancelled', `${booking.restaurant} · ${booking.date} at ${booking.time}`, null);
   sendCancellationEmail(booking); // fire-and-forget; no-ops until the email Worker URL is set
   showToast('Reservation cancelled');
   goScreen('reservations');
@@ -1462,6 +1462,89 @@ function persistReservations() {
     console.error('Reservation update failed:', e);
     showToast('Update failed — check your connection');
   });
+}
+
+// ── In-app notifications ──────────────────────────────────────────────────────
+const NOTIF_ICONS = {
+  confirmed : '✅',
+  modified  : '✏️',
+  cancelled : '❌',
+  reminder  : '⏰',
+  review    : '⭐',
+};
+
+function addNotification(type, title, body, ref) {
+  const notif = { id: `${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+                  type, title, body, ref: ref || null, ts: Date.now(), read: false };
+  state.notifications = [notif, ...state.notifications].slice(0, 30);
+  persistNotifications();
+  updateNotifBadge();
+}
+
+function persistNotifications() {
+  if (!state.user?.uid) return;
+  db.collection('users').doc(state.user.uid).set(
+    { notifications: state.notifications }, { merge: true }
+  ).catch(e => console.error('Notification save failed:', e));
+}
+
+function updateNotifBadge() {
+  const badge = document.getElementById('notifBadge');
+  if (!badge) return;
+  const unread = state.notifications.filter(n => !n.read).length;
+  badge.textContent = unread > 9 ? '9+' : unread;
+  badge.style.display = unread > 0 ? 'flex' : 'none';
+}
+
+function openNotifications() {
+  renderNotifications();
+  document.getElementById('notif-panel').style.display = 'flex';
+  // Mark all as read
+  let changed = false;
+  state.notifications.forEach(n => { if (!n.read) { n.read = true; changed = true; } });
+  if (changed) { persistNotifications(); updateNotifBadge(); }
+}
+
+function closeNotifications() {
+  document.getElementById('notif-panel').style.display = 'none';
+}
+
+function renderNotifications() {
+  const list = document.getElementById('notifList');
+  if (!list) return;
+  if (!state.notifications.length) {
+    list.innerHTML = '<div class="notif-empty">No notifications yet</div>';
+    return;
+  }
+  list.innerHTML = state.notifications.map(n => {
+    const icon = NOTIF_ICONS[n.type] || '🔔';
+    const ago  = timeAgo(n.ts);
+    return `<div class="notif-item${n.read ? '' : ' unread'}" onclick="notifTap('${n.ref || ''}')">
+      <span class="notif-icon">${icon}</span>
+      <div class="notif-body">
+        <div class="notif-title">${n.title}</div>
+        <div class="notif-text">${n.body}</div>
+        <div class="notif-time">${ago}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function notifTap(ref) {
+  closeNotifications();
+  if (!ref) return;
+  const b = state.reservations.find(x => x.ref === ref);
+  if (b) openReservationDetail(ref);
+}
+
+function timeAgo(ts) {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1)   return 'Just now';
+  if (m < 60)  return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24)  return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
 }
 
 // ── Save-credentials modal ────────────────────────────────────────────────────

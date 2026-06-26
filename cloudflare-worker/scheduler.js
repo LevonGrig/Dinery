@@ -101,6 +101,7 @@ async function runScheduler(env) {
       if (b.status === 'checkedIn' && b.checkInAt && !b.reviewSent &&
           (now - Number(b.checkInAt)) >= 60 * 60000) {
         try { await sendEmailResend(env, reviewEmail(b), `How was your visit to ${b.restaurant}? ⭐`, b.email);
+              await appendInAppNotif(token, uid, 'review', 'How was your visit?', `Leave a review for ${b.restaurant}`, b.ref);
               b.reviewSent = true; b.status = 'completed'; changed = true; summary.reviews++; }
         catch (e) { summary.errors.push('review:' + e.message); }
         kept.push(b); continue;
@@ -113,6 +114,7 @@ async function runScheduler(env) {
         try {
           await deleteSlot(token, b);
           await sendEmailResend(env, cancelEmail(b), `Your Dinery reservation at ${b.restaurant} was cancelled`, b.email);
+          await appendInAppNotif(token, uid, 'cancelled', 'Booking Cancelled', `${b.restaurant} · ${b.date} at ${b.time}`, null);
           summary.cancelled++; changed = true;
           // drop it from the list (mirrors a normal cancellation)
           continue;
@@ -123,9 +125,11 @@ async function runScheduler(env) {
       if (b.status === 'booked' && mins !== null) {
         if (!b.remind60Sent && mins <= 60 && mins > 30) {
           await pushAll(env, subs, reminderPayload(b, 60));
+          await appendInAppNotif(token, uid, 'reminder', 'Upcoming Reservation', `${b.restaurant} in 60 minutes`, b.ref);
           b.remind60Sent = true; changed = true; summary.remind60++;
         } else if (!b.remind30Sent && mins <= 30 && mins > 0) {
           await pushAll(env, subs, reminderPayload(b, 30));
+          await appendInAppNotif(token, uid, 'reminder', 'Upcoming Reservation', `${b.restaurant} in 30 minutes`, b.ref);
           b.remind30Sent = true; changed = true; summary.remind30++;
         }
       }
@@ -208,6 +212,34 @@ async function patchReservations(token, uid, reservations) {
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error('patch ' + res.status + ' ' + (await res.text()));
+}
+
+// Prepend an in-app notification to the user's Firestore /users doc (max 30 kept).
+async function appendInAppNotif(token, uid, type, title, body, ref) {
+  try {
+    const getRes = await fetch(`${FS_BASE}/users/${uid}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    let existing = [];
+    if (getRes.ok) {
+      const j = await getRes.json();
+      existing = fromFs({ arrayValue: j.fields?.notifications?.arrayValue || {} }) || [];
+    }
+    const notif = {
+      id: `${Date.now()}-sched`,
+      type, title, body, ref: ref || null,
+      ts: Date.now(), read: false,
+    };
+    const updated = [notif, ...existing].slice(0, 30);
+    const patchUrl = `${FS_BASE}/users/${uid}?updateMask.fieldPaths=notifications`;
+    await fetch(patchUrl, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { notifications: toFs(updated) } }),
+    });
+  } catch (e) {
+    console.log('appendInAppNotif failed (non-fatal):', e.message);
+  }
 }
 
 async function deleteSlot(token, b) {
