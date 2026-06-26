@@ -4,7 +4,11 @@ Runs every minute and, from your Firestore reservations:
 - sends **push reminders** 60 min and 30 min before the slot,
 - **auto-cancels no-shows** 15 min after the slot (if still `booked`, i.e. not
   checked in) and emails the cancellation,
-- emails a **review request** ~60 min after check-in.
+- emails a **review request** ~60 min after check-in,
+- **deletes stale guest accounts** — an anonymous account (a `/users` doc with
+  no email) is removed from both Firestore and Firebase Auth once all of its
+  reservations have ended and `GUEST_TTL_HOURS` (default 24h) have passed, so
+  unused guest users don't pile up. Off unless `ENABLE_GUEST_CLEANUP=true`.
 
 ## 1. Create the Worker
 1. Cloudflare dashboard → **Workers & Pages → Create → Create Worker**.
@@ -19,6 +23,13 @@ Worker → **Settings → Variables and Secrets**:
 - `RESEND_API_KEY` — **Secret** — your `re_...` key (same one as the email worker).
 - `RESEND_FROM` — **Text** — `Dinery <noreply@dinery.am>`
 - `RUN_KEY` — **Secret** — any random string (used to guard the manual test URL).
+- `ENABLE_GUEST_CLEANUP` — **Text** — `true` to delete stale guest accounts (leave unset to keep them).
+- `GUEST_TTL_HOURS` — **Text** — hours after the last reservation before a guest is deleted (optional, default `24`).
+
+> Guest cleanup deletes Firebase **Auth** users, so the service account needs the
+> **Firebase Authentication Admin** IAM role (the default Firebase Admin SDK
+> service account already has it). If deletes 403, grant that role in Google
+> Cloud Console → IAM.
 
 Re-**Deploy** after adding them.
 

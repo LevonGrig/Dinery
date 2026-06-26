@@ -7,12 +7,24 @@
 //      (admin never checked the guest in) and emails the cancellation
 //    • emails a review request ~60 min after check-in (status 'checkedIn')
 //
+//  It also runs a guest-cleanup pass: a guest (anonymous account — a user doc
+//  with no email) is deleted from BOTH Firestore and Firebase Auth once all of
+//  their reservations have ended and a grace period (GUEST_TTL_HOURS, default
+//  24h) has passed with no new/upcoming booking. This keeps unused anonymous
+//  accounts from piling up. Gated by ENABLE_GUEST_CLEANUP === 'true'.
+//
 //  Secrets (Cloudflare → Worker → Settings → Variables):
 //    GOOGLE_SERVICE_ACCOUNT  (secret)  the full service-account JSON (one line)
 //    VAPID_PRIVATE_KEY       (secret)  the VAPID private 'd' (base64url)
 //    RESEND_API_KEY          (secret)  re_...
 //    RESEND_FROM             (text)    Dinery <noreply@dinery.am>
 //    RUN_KEY                 (secret)  any random string — guards ?run= manual test
+//    ENABLE_GUEST_CLEANUP    (text)    'true' to delete stale guest accounts
+//    GUEST_TTL_HOURS         (text)    hours after last reservation to delete (default 24)
+//
+//  NOTE: deleting Auth users needs the service account to have the
+//  "Firebase Authentication Admin" IAM role (the default Firebase Admin SDK
+//  service account already does).
 //
 //  Manual test:  https://<worker-url>/?run=1&key=<RUN_KEY>
 // ─────────────────────────────────────────────────────────────────────────────
@@ -56,12 +68,25 @@ async function runScheduler(env) {
   const token = await getAccessToken(env);
   const users = await listUsers(token);
   const now   = Date.now();
-  const summary = { scanned: 0, remind60: 0, remind30: 0, cancelled: 0, reviews: 0, errors: [] };
+  const summary = { scanned: 0, remind60: 0, remind30: 0, cancelled: 0, reviews: 0, guestsDeleted: 0, errors: [] };
 
   for (const user of users) {
     const uid  = user.uid;
     const subs = Array.isArray(user.pushSubscriptions) ? user.pushSubscriptions : [];
     const list = Array.isArray(user.reservations) ? user.reservations : [];
+
+    // Guest cleanup: delete a stale anonymous account (no email) once all its
+    // reservations have ended + the grace period passed. Runs before reminders
+    // so a fresh booking (future slot) is always safely kept.
+    if (env.ENABLE_GUEST_CLEANUP === 'true' && isStaleGuest(user, list, now, env)) {
+      try {
+        await deleteUserDoc(token, uid);
+        await deleteAuthUser(env, token, uid);
+        summary.guestsDeleted++;
+      } catch (e) { summary.errors.push('guestDelete:' + e.message); }
+      continue;
+    }
+
     if (!list.length) continue;
 
     let changed = false;
@@ -121,6 +146,31 @@ function slotEpoch(b) {
   return Number.isNaN(ms) ? null : ms;
 }
 
+// A guest is an anonymous account: its /users doc has no email (real accounts
+// always store one at sign-up). It's "stale" once every reservation has ended
+// and GUEST_TTL_HOURS have passed since the latest one — and there's nothing
+// upcoming. We never touch docs that carry an email (real accounts).
+function isStaleGuest(user, list, now, env) {
+  if ((user.email || '').trim()) return false;          // real account — keep
+  const ttlMs = (Number(env.GUEST_TTL_HOURS) || 24) * 3600 * 1000;
+
+  // Newest known moment across reservations (prefer the slot time; fall back to
+  // when the booking was created so we never delete a brand-new guest).
+  let latest = 0;
+  for (const b of list) {
+    const slot = slotEpoch(b);
+    if (slot && slot > latest) latest = slot;
+    if (b.ts  && b.ts  > latest) latest = b.ts;
+  }
+
+  // An empty guest doc with no reservations carries no timestamp we can trust,
+  // so leave it alone rather than risk deleting one mid-booking.
+  if (!latest) return false;
+
+  // Keep until the grace period after the most recent reservation/booking.
+  return (now - latest) >= ttlMs;
+}
+
 function reminderPayload(b, mins) {
   return {
     title: 'Reservation reminder',
@@ -170,6 +220,31 @@ async function deleteSlot(token, b) {
   if (!res.ok && res.status !== 404) console.log('deleteSlot', res.status, await res.text());
 }
 
+// Delete the guest's Firestore /users doc.
+async function deleteUserDoc(token, uid) {
+  const res = await fetch(`${FS_BASE}/users/${uid}`, {
+    method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok && res.status !== 404) throw new Error('deleteUserDoc ' + res.status + ' ' + (await res.text()));
+}
+
+// Delete the guest's Firebase Auth account (Identity Toolkit Admin API).
+// Needs the cloud-platform scope + Firebase Authentication Admin IAM role.
+async function deleteAuthUser(env, token, uid) {
+  const res = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts:delete`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ localId: uid }),
+    });
+  // USER_NOT_FOUND is fine (already gone)
+  if (!res.ok) {
+    const t = await res.text();
+    if (!t.includes('USER_NOT_FOUND')) throw new Error('deleteAuthUser ' + res.status + ' ' + t);
+  }
+}
+
 function fromFsFields(fields) { const o = {}; for (const k in fields) o[k] = fromFs(fields[k]); return o; }
 function fromFs(v) {
   if (v.nullValue !== undefined)      return null;
@@ -199,7 +274,7 @@ async function getAccessToken(env) {
   const header = { alg: 'RS256', typ: 'JWT' };
   const claim  = {
     iss: sa.client_email,
-    scope: 'https://www.googleapis.com/auth/datastore',
+    scope: 'https://www.googleapis.com/auth/datastore https://www.googleapis.com/auth/cloud-platform',
     aud: 'https://oauth2.googleapis.com/token',
     iat: now, exp: now + 3600,
   };
