@@ -426,7 +426,7 @@ async function doSignUp() {
   try {
     if (isUpgrade) {
       // Convert the anonymous account to a real one — same UID, reservations stay intact
-      const credential = firebase.auth.EmailAuthProvider.credential(email, password);
+      const credential = EmailAuthProvider.credential(email, password);
       cred = await auth.currentUser.linkWithCredential(credential);
     } else {
       cred = await auth.createUserWithEmailAndPassword(email, password);

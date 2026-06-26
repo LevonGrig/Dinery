@@ -2,7 +2,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import {
   getAuth, setPersistence, browserLocalPersistence,
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  signOut, onAuthStateChanged, updatePassword, deleteUser
+  signOut, onAuthStateChanged, updatePassword, deleteUser,
+  signInAnonymously, linkWithCredential, EmailAuthProvider
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, deleteDoc, runTransaction,
@@ -35,12 +36,15 @@ window.auth = {
   onAuthStateChanged:             (cb)        => onAuthStateChanged(_auth, cb),
   createUserWithEmailAndPassword: (email, pw) => createUserWithEmailAndPassword(_auth, email, pw),
   signInWithEmailAndPassword:     (email, pw) => signInWithEmailAndPassword(_auth, email, pw),
+  signInAnonymously:              ()          => signInAnonymously(_auth),
   signOut:                        ()          => signOut(_auth),
   get currentUser() {
     const u = _auth.currentUser;
     return u ? Object.assign(Object.create(u), {
-      updatePassword:    (pw) => updatePassword(u, pw),
-      deleteCurrentUser: ()   => deleteUser(u),
+      isAnonymous:       u.isAnonymous,
+      updatePassword:    (pw)   => updatePassword(u, pw),
+      deleteCurrentUser: ()     => deleteUser(u),
+      linkWithCredential:(cred) => linkWithCredential(u, cred),
     }) : null;
   },
   deleteCurrentUser: () => {
@@ -49,6 +53,7 @@ window.auth = {
     return deleteUser(u);
   },
 };
+window.EmailAuthProvider = EmailAuthProvider;
 
 window.db = {
   collection: (name) => ({
