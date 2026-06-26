@@ -150,10 +150,10 @@
         <input type="email" id="si-email" placeholder="your@email.com" oninput="clearErr('err-si')">
       </div>
       <div class="form-group">
-        <label style="display:flex;justify-content:space-between;align-items:center">
-          Password
-          <button onclick="goScreen('forgot-password')" style="background:none;border:none;color:var(--gold);font-size:13px;font-weight:600;cursor:pointer;padding:0;text-transform:none;letter-spacing:0">Forgot password?</button>
-        </label>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <label style="margin-bottom:0">Password</label>
+          <button onclick="goScreen('forgot-password')" style="background:none;border:none;color:var(--gold);font-size:13px;font-weight:600;cursor:pointer;padding:0;text-transform:none;letter-spacing:0;font-family:inherit">Forgot password?</button>
+        </div>
         <div class="pw-wrap">
           <input type="password" id="si-password" placeholder="Your password" oninput="clearErr('err-si')">
           <button class="pw-toggle" onclick="togglePw('si-password',this)">👁</button>
@@ -853,6 +853,6 @@
 <script type="module" src="firebase-config.js?v=14"></script>
 <script src="push.js?v=1"></script>
 <script src="email.js?v=7"></script>
-<script src="app.js?v=31"></script>
+<script src="app.js?v=32"></script>
 </body>
 </html>
