@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Dinery — Fine Dining Reservations</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg?v=3">
-  <link rel="stylesheet" href="style.css?v=15">
+  <link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
 <div id="app">
@@ -483,11 +483,7 @@
 
             <div class="rp-section">
               <div class="rp-label">Seating</div>
-              <div class="rp-seat-grid" id="rpSeatGrid">
-                <button class="rp-seat-btn" onclick="rpSelectSeat(this,'terrace')">Terrace</button>
-                <button class="rp-seat-btn" onclick="rpSelectSeat(this,'main')">Main Hall</button>
-                <button class="rp-seat-btn" onclick="rpSelectSeat(this,'vip')">VIP Room</button>
-              </div>
+              <div class="rp-seat-grid" id="rpSeatGrid"></div>
             </div>
 
             <button class="btn-primary rp-cta" id="rpCta" onclick="startBookingFromPanel()" disabled>Reserve a Table</button>
@@ -910,6 +906,6 @@
 <script type="module" src="firebase-config.js?v=14"></script>
 <script src="push.js?v=1"></script>
 <script src="email.js?v=8"></script>
-<script src="app.js?v=35"></script>
+<script src="app.js?v=36"></script>
 </body>
 </html>

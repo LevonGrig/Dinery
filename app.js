@@ -918,6 +918,7 @@ function openRestaurant(id) {
   state.selectedTime    = null;
   state.selectedSeating = null;
   state.guestCount      = 2;
+  buildRpSeatGrid();
   buildRpDateGrid();
   buildRpTimeGrid();
   const rpMinus = document.getElementById('rpBtnMinus');
@@ -925,7 +926,6 @@ function openRestaurant(id) {
   if (rpMinus) rpMinus.disabled = false;
   if (rpPlus)  rpPlus.disabled  = false;
   document.getElementById('rpGuestCount').textContent = '2';
-  document.querySelectorAll('.rp-seat-btn').forEach(b => b.classList.remove('active'));
   const rpCta = document.getElementById('rpCta');
   if (rpCta) rpCta.disabled = true;
 
@@ -1123,6 +1123,18 @@ function checkDateTimeReady() {
 
 // ── Desktop reservation panel ─────────────────────────────────────────────────
 
+function buildRpSeatGrid() {
+  const r    = state.selectedRestaurant;
+  const grid = document.getElementById('rpSeatGrid');
+  if (!grid) return;
+  grid.innerHTML = (r?.halls || []).map(h =>
+    `<button class="rp-seat-btn" data-hall="${h.id}" onclick="rpSelectSeat(this,'${h.id}')">
+       <span class="rp-seat-name">${SEATING_LABELS[h.id] || h.id}</span>
+       <span class="rp-avail-badge"></span>
+     </button>`
+  ).join('');
+}
+
 function buildRpDateGrid() {
   const days  = ['Su','Mo','Tu','We','Th','Fr','Sa'];
   const today = new Date();
@@ -1162,6 +1174,7 @@ function rpSelectDate(el, date) {
   state.selectedDate = date;
   state.selectedTime = null;
   buildRpTimeGrid();
+  updateRpSeatAvailability();
   checkRpReady();
 }
 
@@ -1169,6 +1182,7 @@ function rpSelectTime(el, time) {
   document.querySelectorAll('#rpTimeGrid .rp-time-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   state.selectedTime = time;
+  updateRpSeatAvailability();
   checkRpReady();
 }
 
@@ -1184,13 +1198,72 @@ function rpChangeGuests(delta) {
   const plus  = document.getElementById('rpBtnPlus');
   if (minus) minus.disabled = state.guestCount <= 1;
   if (plus)  plus.disabled  = state.guestCount >= max;
+  updateRpSeatAvailability();
 }
 
 function rpSelectSeat(el, type) {
+  if (el.classList.contains('rp-avail-none')) return;
   document.querySelectorAll('#rpSeatGrid .rp-seat-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   state.selectedSeating = type;
   checkRpReady();
+}
+
+async function updateRpSeatAvailability() {
+  const r     = state.selectedRestaurant;
+  const date  = state.selectedDate;
+  const time  = state.selectedTime;
+  const guests = state.guestCount;
+
+  // Reset all buttons to neutral when slot isn't fully specified yet
+  const allBtns = document.querySelectorAll('#rpSeatGrid .rp-seat-btn');
+  if (!r || !date || !time) {
+    allBtns.forEach(b => {
+      b.classList.remove('rp-avail-low', 'rp-avail-none');
+      const badge = b.querySelector('.rp-avail-badge');
+      if (badge) badge.textContent = '';
+    });
+    return;
+  }
+
+  const maxWaste = (r.maxTableWaste == null) ? 1 : r.maxTableWaste;
+
+  for (const hall of (r.halls || [])) {
+    const btn = document.querySelector(`#rpSeatGrid .rp-seat-btn[data-hall="${hall.id}"]`);
+    if (!btn) continue;
+
+    const tables   = hall.tables || [];
+    const tableIds = tables.map(t => t.id);
+
+    let bookedIds = new Set();
+    if (window.tableStore && tableIds.length) {
+      const b = await window.tableStore.bookedSet(r.id, hall.id, date, time, tableIds);
+      if (b) bookedIds = b;
+    }
+
+    const fitCount = tables.filter(t =>
+      !bookedIds.has(t.id) && t.seats >= guests && (t.seats - guests) <= maxWaste
+    ).length;
+
+    btn.classList.remove('rp-avail-low', 'rp-avail-none');
+    const badge = btn.querySelector('.rp-avail-badge');
+
+    if (fitCount === 0) {
+      btn.classList.add('rp-avail-none');
+      if (badge) badge.textContent = 'Full';
+      // Deselect if this hall was chosen and is now unavailable
+      if (state.selectedSeating === hall.id) {
+        btn.classList.remove('active');
+        state.selectedSeating = null;
+        checkRpReady();
+      }
+    } else if (fitCount <= 2) {
+      btn.classList.add('rp-avail-low');
+      if (badge) badge.textContent = `${fitCount} left`;
+    } else {
+      if (badge) badge.textContent = '';
+    }
+  }
 }
 
 function checkRpReady() {

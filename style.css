@@ -948,4 +948,34 @@
       /* CTA button inside panel */
       .rp-cta { margin-top: 8px; }
 
+      /* ── Seat button inner layout (name + badge stacked) ── */
+      .rp-seat-btn {
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 3px;
+      }
+      .rp-seat-name  { line-height: 1.2; }
+      .rp-avail-badge {
+        font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
+        line-height: 1; min-height: 12px;
+      }
+
+      /* ── Low availability (1–2 tables fit) — orange accent ── */
+      .rp-seat-btn.rp-avail-low {
+        border-color: #d97706;
+        background: rgba(217, 119, 6, 0.06);
+      }
+      .rp-seat-btn.rp-avail-low .rp-avail-badge { color: #d97706; }
+      .rp-seat-btn.rp-avail-low:hover { border-color: #b45309; }
+      .rp-seat-btn.rp-avail-low.active {
+        background: #d97706; border-color: #d97706; color: #fff;
+      }
+      .rp-seat-btn.rp-avail-low.active .rp-avail-badge { color: #fff; }
+
+      /* ── Fully booked — greyed out, non-interactive ── */
+      .rp-seat-btn.rp-avail-none {
+        opacity: 0.45; pointer-events: none; cursor: not-allowed;
+        border-color: rgba(57,18,18,0.1);
+      }
+      .rp-seat-btn.rp-avail-none .rp-avail-badge { color: var(--gray); }
+
     }
