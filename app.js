@@ -1531,7 +1531,10 @@ async function confirmBooking() {
 
   if (wasModification) {
     addNotification('modified', 'Booking Updated', `${r.name} · ${dateStr} at ${state.selectedTime}`, ref);
-    sendModifiedEmail(booking, state.lastBookingEmail);
+    const prev = oldBooking
+      ? { date: oldBooking.date, time: oldBooking.time, guests: oldBooking.guests }
+      : null;
+    sendModifiedEmail(booking, state.lastBookingEmail, prev);
   } else {
     addNotification('confirmed', 'Booking Confirmed', `${r.name} · ${dateStr} at ${state.selectedTime}`, ref);
     sendConfirmationEmail(booking, state.lastBookingEmail);

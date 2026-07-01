@@ -427,18 +427,76 @@ function cancelEmail(b) {
   <tr><td style="background:#FAF4E8;padding:0 36px 36px;text-align:center;"><a href="${SITE}" style="display:inline-block;background:#391212;color:#FAF4E8;padding:16px 30px;border-radius:3px;text-decoration:none;font-size:13px;letter-spacing:2px;text-transform:uppercase;">Book Again</a></td></tr>`);
 }
 
+// Restyled editorial review request — kept in sync with buildReviewEmailHTML in
+// email.js (apricot masthead, rounded restaurant photo, gold star rating).
 function reviewEmail(b) {
-  const star = (n) => `<a href="${SITE}/?r=${encodeURIComponent(b.ref)}&a=review&rating=${n}" style="text-decoration:none;color:#C9A24B;font-size:32px;padding:0 3px;">★</a>`;
-  return shell('How was your visit?', `
-  <tr><td style="background:#FDF8F0;padding:36px;text-align:center;">
-    <h1 style="margin:0 0 12px 0;font-size:30px;color:#391212;text-transform:uppercase;">Tell us about your visit</h1>
-    <p style="margin:0;font-size:15px;color:#5a4a42;line-height:1.6;">You dined at <strong>${b.restaurant}</strong> on ${b.date}. We'd love to hear how it went, ${b.name || 'there'}.</p>
+  const restName = b.restaurant || 'your restaurant';
+  const date     = b.date   || '—';
+  const time     = b.time   || '—';
+  const guests   = b.guests || '—';
+  const imgUrl   = b.img || '';
+  const reviewUrl = (n) => `${SITE}/?r=${encodeURIComponent(b.ref)}&a=review${n ? `&rating=${n}` : ''}`;
+  const star = (n) => `<a href="${reviewUrl(n)}" style="text-decoration:none;color:#B87040;font-size:40px;line-height:1;padding:0 4px;">&#9733;</a>`;
+  return `<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tell Us About Your Visit</title></head>
+<body style="margin:0;padding:0;background-color:#FAF4E8;font-family:Georgia,'Times New Roman',serif;">
+<div style="display:none;font-size:1px;color:#FAF4E8;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">How was your evening at ${restName}? Leave a review and earn bonus points.</div>
+<center style="width:100%;background-color:#FAF4E8;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px;margin:0 auto;" align="center">
+
+  <tr><td style="background-color:#B87040;padding:28px 36px 18px 36px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+      <td align="left"><span style="font-family:Georgia,serif;font-size:22px;letter-spacing:2px;color:#FAF4E8;font-weight:bold;">DINERY</span></td>
+      <td align="right"><span style="font-family:Georgia,serif;font-size:11px;letter-spacing:3px;color:#FAF4E8;text-transform:uppercase;">Yerevan</span></td>
+    </tr></table>
   </td></tr>
-  <tr><td style="background:#fff;padding:32px 36px;text-align:center;">
-    <p style="margin:0 0 16px 0;font-size:11px;letter-spacing:3px;color:#391212;text-transform:uppercase;font-weight:bold;">How would you rate it?</p>
-    <p style="margin:0 0 24px 0;">${star(1)}${star(2)}${star(3)}${star(4)}${star(5)}</p>
-    <a href="${SITE}/?r=${encodeURIComponent(b.ref)}&a=review" style="display:inline-block;background:#391212;color:#FAF4E8;padding:16px 30px;border-radius:3px;text-decoration:none;font-size:13px;letter-spacing:2px;text-transform:uppercase;">★ Leave a Review</a>
-  </td></tr>`);
+  <tr><td style="background-color:#B87040;padding:0 36px 24px 36px;"><div style="border-top:1.5px solid #FAF4E8;line-height:1px;font-size:1px;">&nbsp;</div></td></tr>
+
+  <tr><td align="center" style="background-color:#FDF8F0;padding:40px 36px;">
+    <h1 style="margin:0 0 16px 0;font-family:Georgia,serif;font-size:34px;line-height:1.25;color:#391212;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">Tell us about your visit</h1>
+    <p style="margin:0;font-size:15px;line-height:1.7;color:#5a4a42;max-width:440px;">You dined at ${restName} on ${date}. We'd love to hear how it went${b.name ? ', ' + b.name : ''}.</p>
+  </td></tr>
+
+  ${imgUrl ? `<tr><td style="background-color:#FFFFFF;padding:40px 36px 24px 36px;"><img src="${imgUrl}" alt="${restName}" width="100%" style="display:block;border-radius:10px;width:100%;height:220px;object-fit:cover;"></td></tr>` : `<tr><td style="background-color:#FFFFFF;padding:20px 0 0 0;line-height:1px;font-size:1px;">&nbsp;</td></tr>`}
+
+  <tr><td align="center" style="background-color:#FFFFFF;padding:0 36px 24px 36px;">
+    <p style="margin:0;font-size:14px;color:#391212;font-weight:bold;">${restName}</p>
+    <p style="margin:4px 0 0 0;font-size:13px;color:#8a7a6f;font-weight:bold;">${date} at ${time} — ${guests} guest${guests === 1 ? '' : 's'}</p>
+  </td></tr>
+
+  <tr><td style="background-color:#FFFFFF;padding:0 36px;"><div style="border-top:1.5px solid #391212;line-height:1px;font-size:1px;">&nbsp;</div></td></tr>
+
+  <tr><td align="center" style="background-color:#FFFFFF;padding:40px 36px;">
+    <p style="margin:0 0 18px 0;font-size:11px;letter-spacing:3px;color:#B87040;text-transform:uppercase;font-weight:bold;">How would you rate it?</p>
+    <p style="margin:0 auto 32px auto;">${star(1)}${star(2)}${star(3)}${star(4)}${star(5)}</p>
+    <a href="${reviewUrl()}" style="display:block;background-color:#391212;color:#FAF4E8;font-family:Georgia,serif;font-size:14px;letter-spacing:2px;font-weight:bold;text-decoration:none;padding:18px 0;border-radius:3px;text-align:center;text-transform:uppercase;">Leave a Review</a>
+  </td></tr>
+
+  <tr><td align="center" style="background-color:#FAF4E8;padding:40px 36px;">
+    <p style="margin:0 0 16px 0;font-family:Georgia,serif;font-size:22px;letter-spacing:4px;color:#391212;font-weight:bold;text-transform:uppercase;">Reserve. Enjoy. Earn. Redeem.</p>
+    <p style="margin:0 0 24px 0;font-size:14px;color:#5a4a42;line-height:1.6;">Leave a review and earn bonus points — redeemable toward future perks.</p>
+    <a href="${SITE}" style="display:inline-block;background-color:#B87040;color:#FAF4E8;font-family:Georgia,serif;font-size:12px;letter-spacing:3px;font-weight:bold;text-decoration:none;padding:14px 32px;border-radius:3px;text-align:center;text-transform:uppercase;">Learn More</a>
+  </td></tr>
+
+  <tr><td align="center" style="background-color:#FAF4E8;padding:0 36px 40px 36px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1.5px solid #391212;border-radius:6px;"><tr>
+      <td align="center" style="padding:24px 22px;">
+        <p style="margin:0 0 6px 0;font-size:11px;letter-spacing:3px;color:#B87040;text-transform:uppercase;font-weight:bold;">Need Help?</p>
+        <p style="margin:0;font-size:14px;color:#5a4a42;line-height:1.6;">Call us at <a href="tel:+37494115955" style="color:#391212;text-decoration:underline;">+374 94 115955</a> or email <a href="mailto:info@dinery.am" style="color:#391212;text-decoration:underline;">info@dinery.am</a></p>
+      </td>
+    </tr></table>
+  </td></tr>
+
+  <tr><td style="background-color:#391212;padding:28px 36px;">
+    <p style="margin:0 0 4px 0;font-size:11px;color:#FAF4E8;letter-spacing:1px;">© 2026 DINERY</p>
+    <p style="margin:0;font-size:11px;color:#FAF4E8;letter-spacing:1px;">YEREVAN, ARMENIA</p>
+  </td></tr>
+
+</table>
+</center>
+</body></html>`;
 }
 
 // ── encoding helpers ──────────────────────────────────────────────────────────
