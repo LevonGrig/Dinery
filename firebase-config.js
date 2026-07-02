@@ -5,6 +5,7 @@ import {
   signOut, onAuthStateChanged, updatePassword, deleteUser,
   signInAnonymously, linkWithCredential, EmailAuthProvider,
   GoogleAuthProvider, OAuthProvider, signInWithPopup, linkWithPopup,
+  signInWithCredential,
   sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset,
   RecaptchaVerifier, signInWithPhoneNumber
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -44,10 +45,27 @@ window.auth = {
   // Social sign-in (Google / Apple). If a guest (anonymous) is signed in we
   // LINK the provider so the same UID + existing reservations are kept;
   // otherwise it's a normal popup sign-in.
-  signInWithProvider: (name) => {
+  //
+  // If that Google/Apple account already has its own separate Dinery account,
+  // Firebase refuses the link (auth/credential-already-in-use) — the guest's
+  // anonymous data can't be merged into an existing account. In that case we
+  // recover by signing straight into the existing account instead of leaving
+  // the user stuck on an error.
+  signInWithProvider: async (name) => {
     const p = makeProvider(name);
     const cur = _auth.currentUser;
-    return (cur && cur.isAnonymous) ? linkWithPopup(cur, p) : signInWithPopup(_auth, p);
+    if (!(cur && cur.isAnonymous)) return signInWithPopup(_auth, p);
+    try {
+      return await linkWithPopup(cur, p);
+    } catch (err) {
+      if (err?.code === 'auth/credential-already-in-use') {
+        const credential = name === 'apple'
+          ? OAuthProvider.credentialFromError(err)
+          : GoogleAuthProvider.credentialFromError(err);
+        if (credential) return await signInWithCredential(_auth, credential);
+      }
+      throw err;
+    }
   },
   get currentUser() {
     const u = _auth.currentUser;
