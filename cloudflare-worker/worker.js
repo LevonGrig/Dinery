@@ -148,40 +148,120 @@ function sendResend(env, to, subject, html) {
   });
 }
 
-// ── Password-reset email template ─────────────────────────────────────────────
+// ── Password-reset email template (editorial design, matches email.js) ────────
 function passwordResetHtml(email, resetUrl) {
+  const svgIcon = (d) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#391212" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  const iconUri = (svg) => 'data:image/svg+xml;base64,' + btoa(svg);
+  const igIcon  = iconUri(svgIcon('<rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>'));
+  const fbIcon  = iconUri(svgIcon('<path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>'));
+  const ttIcon  = iconUri(svgIcon('<path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/>'));
+
   return `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reset your password</title></head>
-<body style="margin:0;padding:0;background:#FAF4E8;font-family:Georgia,serif">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#FAF4E8;padding:40px 20px">
-    <tr><td align="center">
-      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.06)">
-        <tr><td style="background:#391212;padding:32px 40px;text-align:center">
-          <div style="font-size:32px;font-weight:800;color:#C9A24B;letter-spacing:2px">Din<span style="color:#FAF4E8">ery</span></div>
-        </td></tr>
-        <tr><td style="padding:40px 40px 20px;text-align:center">
-          <div style="font-size:40px;margin-bottom:16px">🔑</div>
-          <h1 style="font-size:22px;color:#391212;margin:0 0 12px;font-weight:700">Reset your password</h1>
-          <p style="font-size:15px;color:#6b5c52;line-height:1.6;margin:0 0 28px">
-            We received a request to reset the password for <strong>${email}</strong>.<br>
-            Click the button below to choose a new password.
-          </p>
-          <a href="${resetUrl}" style="display:inline-block;background:#391212;color:#FAF4E8;padding:16px 36px;border-radius:50px;text-decoration:none;font-size:15px;font-weight:600;letter-spacing:.5px">Set New Password</a>
-        </td></tr>
-        <tr><td style="padding:24px 40px 40px;text-align:center;border-top:1px solid #f0ebe3">
-          <p style="font-size:13px;color:#8a7a6f;line-height:1.6;margin:0">
-            This link expires in <strong>1 hour</strong>. If you didn't request a password reset, you can safely ignore this email — your account remains secure.
-          </p>
-        </td></tr>
-        <tr><td style="background:#f9f4ee;padding:20px 40px;text-align:center">
-          <p style="font-size:12px;color:#a09080;margin:0">
-            © 2025 Dinery · Fine Dining Reservations, Yerevan
-          </p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>Reset Your Password</title>
+</head>
+<body style="margin:0; padding:0; background-color:#FAF4E8; font-family:Georgia, 'Times New Roman', serif;">
+
+<div style="display:none; font-size:1px; color:#FAF4E8; line-height:1px; max-height:0px; max-width:0px; opacity:0; overflow:hidden;">
+  A password reset was requested for your Dinery account. If this wasn't you, you can safely ignore this email.
+</div>
+
+<center style="width:100%; background-color:#FAF4E8;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px; margin:0 auto;" align="center">
+
+  <tr><td style="background-color:#B87040; padding:28px 36px 0 36px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+      <td align="left" valign="middle"><span style="font-family:Georgia, serif; font-size:26px; letter-spacing:3px; color:#FAF4E8; font-weight:bold;">DINERY</span></td>
+      <td align="right" valign="middle"><span style="font-family:Georgia, serif; font-size:11px; letter-spacing:2px; color:#FAF4E8; text-transform:uppercase;">Yerevan, Armenia</span></td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="background-color:#B87040; padding:18px 36px 26px 36px;">
+    <div style="border-top:1px solid rgba(250,244,232,0.4); line-height:1px; font-size:1px;">&nbsp;</div>
+  </td></tr>
+
+  <tr><td align="center" style="background-color:#FDF8F0; padding:44px 36px 36px 36px;">
+    <h1 style="margin:0 0 14px 0; font-family:Georgia, serif; font-size:30px; line-height:1.25; color:#391212; font-weight:bold; text-transform:uppercase; letter-spacing:1px;">Reset Your Password</h1>
+    <p style="margin:0; font-size:15px; line-height:1.75; color:#5a4a42; max-width:420px; margin-left:auto; margin-right:auto;">
+      We received a request to reset the password for your Dinery account (<strong>${email}</strong>). Click the button below to choose a new password.
+    </p>
+  </td></tr>
+
+  <tr><td align="center" style="background-color:#FDF8F0; padding:0 36px 44px 36px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td align="center" style="background-color:#391212; border-radius:50px; padding:16px 40px;">
+        <a href="${resetUrl}" target="_blank" style="font-family:Georgia, serif; font-size:14px; letter-spacing:1.5px; color:#FAF4E8; text-decoration:none; text-transform:uppercase; font-weight:bold; display:inline-block;">Reset My Password</a>
+      </td>
+    </tr></table>
+  </td></tr>
+
+  <tr><td style="background-color:#FDF8F0; padding:0 36px;"><div style="border-top:1.5px solid #391212; line-height:1px; font-size:1px;">&nbsp;</div></td></tr>
+
+  <tr><td align="center" style="background-color:#FAF4E8; padding:36px 36px 28px 36px;">
+    <p style="margin:0 0 6px 0; font-size:11px; letter-spacing:3px; color:#391212; text-transform:uppercase; font-weight:bold;">Security Notice</p>
+    <p style="margin:0; font-size:14px; line-height:1.75; color:#5a4a42; max-width:440px; margin-left:auto; margin-right:auto;">
+      This link is valid for <strong style="color:#391212;">1 hour</strong> and can only be used once. Please do not share it with anyone — Dinery will never ask for your reset link.
+    </p>
+  </td></tr>
+
+  <tr><td style="background-color:#FAF4E8; padding:0 36px;"><div style="border-top:1.5px solid #391212; line-height:1px; font-size:1px;">&nbsp;</div></td></tr>
+
+  <tr><td align="center" style="background-color:#FAF4E8; padding:36px 36px 28px 36px;">
+    <p style="margin:0 0 6px 0; font-size:11px; letter-spacing:3px; color:#391212; text-transform:uppercase; font-weight:bold;">Button Not Working?</p>
+    <p style="margin:0 0 12px 0; font-size:14px; line-height:1.75; color:#5a4a42; max-width:440px; margin-left:auto; margin-right:auto;">Copy and paste the link below into your browser:</p>
+    <p style="margin:0; font-size:12px; color:#8a7a6f; word-break:break-all; max-width:440px; margin-left:auto; margin-right:auto;">${resetUrl}</p>
+  </td></tr>
+
+  <tr><td style="background-color:#FAF4E8; padding:0 36px;"><div style="border-top:1.5px solid #391212; line-height:1px; font-size:1px;">&nbsp;</div></td></tr>
+
+  <tr><td align="center" style="background-color:#FAF4E8; padding:36px 36px 28px 36px;">
+    <p style="margin:0 0 6px 0; font-size:11px; letter-spacing:3px; color:#391212; text-transform:uppercase; font-weight:bold;">Didn't Request This?</p>
+    <p style="margin:0; font-size:14px; line-height:1.75; color:#5a4a42; max-width:440px; margin-left:auto; margin-right:auto;">
+      If you didn't request a password reset, you can safely ignore this email — your password will remain unchanged. If you're concerned about your account's security, reach us at
+      <a href="mailto:support@dinery.am" style="color:#391212; text-decoration:underline;">support@dinery.am</a>.
+    </p>
+  </td></tr>
+
+  <tr><td style="background-color:#FDF8F0; padding:32px 36px;">
+    <div style="border-top:1.5px solid #391212; line-height:1px; font-size:1px; margin-bottom:24px;">&nbsp;</div>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+      <td align="left" valign="middle">
+        <p style="margin:0 0 4px 0; font-size:11px; color:#8a7a6f; letter-spacing:1px;">© 2026 DINERY</p>
+        <p style="margin:0; font-size:11px; color:#8a7a6f; letter-spacing:1px;">YEREVAN, ARMENIA</p>
+      </td>
+      <td align="right" valign="middle">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td style="padding:0 4px;">
+            <a href="https://instagram.com/dinery" target="_blank" style="display:inline-block; width:36px; height:36px; border:1.5px solid #391212; border-radius:50%; text-align:center; line-height:36px;">
+              <img src="${igIcon}" alt="Instagram" width="16" style="vertical-align:middle;">
+            </a>
+          </td>
+          <td style="padding:0 4px;">
+            <a href="https://facebook.com/dinery" target="_blank" style="display:inline-block; width:36px; height:36px; border:1.5px solid #391212; border-radius:50%; text-align:center; line-height:36px;">
+              <img src="${fbIcon}" alt="Facebook" width="16" style="vertical-align:middle;">
+            </a>
+          </td>
+          <td style="padding:0 4px;">
+            <a href="https://tiktok.com/@dinery" target="_blank" style="display:inline-block; width:36px; height:36px; border:1.5px solid #391212; border-radius:50%; text-align:center; line-height:36px;">
+              <img src="${ttIcon}" alt="TikTok" width="16" style="vertical-align:middle;">
+            </a>
+          </td>
+        </tr></table>
+      </td>
+    </tr></table>
+    <p style="margin:24px 0 0 0; font-size:10px; color:#a89a8e; letter-spacing:1px;">
+      <a href="https://dinery.am" style="color:#a89a8e; text-decoration:underline;">Privacy Policy</a>
+      &nbsp;|&nbsp;
+      <a href="https://dinery.am" style="color:#a89a8e; text-decoration:underline;">Terms of Service</a>
+    </p>
+  </td></tr>
+
+</table>
+</center>
+
 </body>
 </html>`;
 }
