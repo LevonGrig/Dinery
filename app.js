@@ -412,7 +412,7 @@ function navigate(id, isBack) {
   if (id === 'book-guests')       initGuests();
   if (id === 'book-seating')      renderSeating();
   if (id === 'book-details')      populateSummary();
-  if (id === 'admin')             renderAdmin();
+  if (id === 'admin')             { renderAdmin(); renderAdminCheckins(); }
   if (id === 'edit-profile')      populateEditForm();
   if (id === 'forgot-password')   initForgotPassword();
   if (id === 'reset-password')    initResetPasswordScreen();
@@ -764,6 +764,84 @@ async function saveAdminWaste(id) {
   showToast(res.ok
     ? `${r.name}: max waste set to ${r.maxTableWaste}`
     : `Save failed — ${res.error || 'check your connection / admin access'}`);
+}
+
+// ── Admin: today's check-ins ───────────────────────────────────────────────────
+// Every reservation still 'booked' 30 min after its slot time is auto-cancelled
+// by the scheduler as a no-show. This list is how a restaurant marks a guest as
+// arrived (checkInReservation-equivalent, but written to the GUEST's own doc via
+// admin write access) before that happens.
+async function renderAdminCheckins() {
+  const list = document.getElementById('adminCheckinList');
+  if (!list) return;
+  if (!state.isAdmin) { list.innerHTML = ''; return; }
+
+  list.innerHTML = `<p style="font-size:13px;color:var(--gray,#888)">Loading…</p>`;
+
+  const users = window.userStore ? await window.userStore.all() : null;
+  if (!users) {
+    list.innerHTML = `<p style="font-size:13px;color:var(--gray,#888)">Couldn't load check-ins — check your connection.</p>`;
+    return;
+  }
+
+  const today = localISO(new Date());
+  const now   = Date.now();
+  const rows  = [];
+  for (const u of users) {
+    for (const b of (u.reservations || [])) {
+      if (b.status !== 'booked' || b.slotDate !== today) continue;
+      rows.push({ uid: u.uid, ...b });
+    }
+  }
+  rows.sort((a, b) => (a.slotTime || '').localeCompare(b.slotTime || ''));
+
+  if (!rows.length) {
+    list.innerHTML = `<p style="font-size:13px;color:var(--gray,#888)">No reservations booked for today.</p>`;
+    return;
+  }
+
+  list.innerHTML = rows.map(b => {
+    const slotMs   = Date.parse(`${b.slotDate}T${b.slotTime}:00`);
+    const mins     = Number.isNaN(slotMs) ? null : (slotMs - now) / 60000;
+    const overdue  = mins !== null && mins <= 0;
+    return `
+      <div class="checkin-card${overdue ? ' overdue' : ''}">
+        <div class="checkin-info">
+          <div class="checkin-name">${b.name || 'Guest'} · ${b.restaurant || ''}</div>
+          <div class="checkin-meta">${b.guests || '?'} guest${b.guests === 1 ? '' : 's'} · ${b.seating || ''}${b.phone ? ' · ' + b.phone : ''}</div>
+        </div>
+        <div class="checkin-time${overdue ? ' overdue' : ''}">${b.slotTime || ''}</div>
+        <button class="checkin-btn" id="checkinBtn-${b.uid}-${b.ref}" onclick="adminMarkArrived('${b.uid}','${b.ref}')">Mark Arrived</button>
+      </div>`;
+  }).join('');
+}
+
+// Marks a reservation as checked-in on ANOTHER user's Firestore doc (requires
+// admin write access — see firestore.rules). Mirrors checkInReservation(), but
+// that one only ever touches the signed-in user's own reservations.
+async function adminMarkArrived(uid, ref) {
+  if (!window.userStore) return;
+  const btn = document.getElementById(`checkinBtn-${uid}-${ref}`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+  const doc = await db.collection('users').doc(uid).get();
+  if (!doc.exists) { showToast('Could not find that guest'); if (btn) { btn.disabled = false; btn.textContent = 'Mark Arrived'; } return; }
+
+  const reservations = doc.data().reservations || [];
+  const booking = reservations.find(b => b.ref === ref);
+  if (!booking) { showToast('Reservation not found'); if (btn) { btn.disabled = false; btn.textContent = 'Mark Arrived'; } return; }
+
+  booking.status    = 'checkedIn';
+  booking.checkInAt = Date.now();
+
+  const res = await window.userStore.setReservations(uid, reservations);
+  if (res.ok) {
+    showToast(`${booking.name || 'Guest'} marked as arrived`);
+    renderAdminCheckins();
+  } else {
+    showToast('Failed to save — ' + (res.error || 'check your connection / admin access'));
+    if (btn) { btn.disabled = false; btn.textContent = 'Mark Arrived'; }
+  }
 }
 
 // ── Home ─────────────────────────────────────────────────────────────────────

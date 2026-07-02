@@ -317,7 +317,7 @@ Your table is booked. Here are your reservation details for ${restName}.</div>
     <p style="margin:0 0 14px 0; font-size:11px; letter-spacing:3px; color:#B87040; text-transform:uppercase; font-weight:bold;">Important Things to Know</p>
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
       <tr><td valign="top" width="18" style="font-size:13px; color:#391212; line-height:1.6;">•</td><td valign="top" style="font-size:13px; color:#5a4a42; line-height:1.6; padding-bottom:10px;">Dinery's cancellation policy requires cancellations at least 3 hours before your reservation time.</td></tr>
-      <tr><td valign="top" width="18" style="font-size:13px; color:#391212; line-height:1.6;">•</td><td valign="top" style="font-size:13px; color:#5a4a42; line-height:1.6; padding-bottom:10px;">Our restaurants offer a 15-minute grace period. Running late? A quick call to the restaurant lets them hold your table.</td></tr>
+      <tr><td valign="top" width="18" style="font-size:13px; color:#391212; line-height:1.6;">•</td><td valign="top" style="font-size:13px; color:#5a4a42; line-height:1.6; padding-bottom:10px;">Our restaurants offer a 30-minute grace period. Running late? A quick call to the restaurant lets them hold your table.</td></tr>
       <tr><td valign="top" width="18" style="font-size:13px; color:#391212; line-height:1.6;">•</td><td valign="top" style="font-size:13px; color:#5a4a42; line-height:1.6;">We may contact you about this reservation, so please keep your email and phone number up to date.</td></tr>
     </table>
   </td></tr>
@@ -492,7 +492,7 @@ Your reservation at ${restName} has been updated. Here are your new details.</di
     <p style="margin:0 0 14px 0;font-size:11px;letter-spacing:3px;color:#B87040;text-transform:uppercase;font-weight:bold;">Important Things to Know</p>
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
       <tr><td valign="top" width="18" style="font-size:13px;color:#391212;line-height:1.6;">•</td><td valign="top" style="font-size:13px;color:#5a4a42;line-height:1.6;padding-bottom:10px;">Dinery's cancellation policy requires cancellations at least 3 hours before your reservation time.</td></tr>
-      <tr><td valign="top" width="18" style="font-size:13px;color:#391212;line-height:1.6;">•</td><td valign="top" style="font-size:13px;color:#5a4a42;line-height:1.6;padding-bottom:10px;">Our restaurants offer a 15-minute grace period. Running late? A quick call to the restaurant lets them hold your table.</td></tr>
+      <tr><td valign="top" width="18" style="font-size:13px;color:#391212;line-height:1.6;">•</td><td valign="top" style="font-size:13px;color:#5a4a42;line-height:1.6;padding-bottom:10px;">Our restaurants offer a 30-minute grace period. Running late? A quick call to the restaurant lets them hold your table.</td></tr>
       <tr><td valign="top" width="18" style="font-size:13px;color:#391212;line-height:1.6;">•</td><td valign="top" style="font-size:13px;color:#5a4a42;line-height:1.6;">We may contact you about this reservation, so please keep your email and phone number up to date.</td></tr>
     </table>
   </td></tr>

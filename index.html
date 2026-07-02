@@ -832,13 +832,30 @@
       .admin-stepper{display:flex;align-items:center;gap:18px;margin:6px 0 14px}
       .admin-stepper .counter-val{min-width:32px;text-align:center;font-size:20px;font-weight:700}
       .admin-save{width:100%}
+      .admin-section-title{font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gray,#888);margin:28px 0 12px}
+      .checkin-card{background:#fff;border:1px solid var(--cream-dark,#eee);border-radius:16px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
+      .checkin-card.overdue{border-color:#D94444}
+      .checkin-info{flex:1;min-width:0}
+      .checkin-name{font-weight:700;font-size:14px}
+      .checkin-meta{font-size:12px;color:var(--gray,#888);margin-top:2px}
+      .checkin-time{font-weight:700;font-size:13px;color:var(--gold,#B87040);white-space:nowrap}
+      .checkin-time.overdue{color:#D94444}
+      .checkin-btn{background:var(--border,#391212);color:#FAF4E8;border:none;border-radius:50px;padding:9px 16px;font-size:12px;font-weight:700;letter-spacing:0.5px;white-space:nowrap;cursor:pointer}
+      .checkin-btn:disabled{opacity:0.5;cursor:not-allowed}
+      .checkin-done{font-size:12px;font-weight:700;color:#5BAF7D;white-space:nowrap}
     </style>
     <div class="scroll-content">
       <div class="auth-screen" style="justify-content:flex-start; padding-top:60px">
         <button class="topbar-back" style="margin-bottom:24px;padding:0" onclick="goBack('profile')">&#8592;</button>
         <div class="auth-title">Admin Settings</div>
         <div class="auth-sub">Tune table auto-assignment per restaurant. Changes apply to new bookings immediately.</div>
-        <div id="adminList" style="width:100%;margin-top:20px"></div>
+
+        <div class="admin-section-title" style="margin-top:24px">Today's Check-ins</div>
+        <p style="font-size:12px;color:var(--gray,#888);margin:0 0 14px">Mark a guest arrived so they aren't auto-cancelled 30 minutes after their reservation time.</p>
+        <div id="adminCheckinList" style="width:100%"></div>
+
+        <div class="admin-section-title">Restaurant Settings</div>
+        <div id="adminList" style="width:100%"></div>
       </div>
     </div>
   </div>
@@ -903,9 +920,9 @@
 </div>
 
 <!-- Firebase (modular SDK, loaded as a module so it can target the named database) -->
-<script type="module" src="firebase-config.js?v=15"></script>
+<script type="module" src="firebase-config.js?v=16"></script>
 <script src="push.js?v=1"></script>
-<script src="email.js?v=10"></script>
-<script src="app.js?v=37"></script>
+<script src="email.js?v=11"></script>
+<script src="app.js?v=38"></script>
 </body>
 </html>

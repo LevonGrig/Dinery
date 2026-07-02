@@ -3,8 +3,10 @@
 //
 //  Runs on a cron trigger (every minute). For every reservation it:
 //    • sends a push reminder 60 min and 30 min before the slot
-//    • auto-cancels a no-show 15 min after the slot if status is still 'booked'
-//      (admin never checked the guest in) and emails the cancellation
+//    • auto-cancels a no-show 30 min after the slot if status is still 'booked'
+//      — i.e. nobody called checkInReservation()/adminMarkArrived() from the
+//      admin panel's check-in list to mark the guest as arrived — and emails
+//      the cancellation. Applies to every reservation, guest or account.
 //    • emails a review request ~60 min after check-in (status 'checkedIn')
 //
 //  It also runs a guest-cleanup pass: a guest (anonymous account — a user doc
@@ -109,15 +111,24 @@ async function runScheduler(env) {
         kept.push(b); continue;
       }
 
-      // No-show auto-cancel: 15+ min past the slot and still merely 'booked'.
-      // Off unless ENABLE_AUTOCANCEL === 'true' (until admin check-in exists,
-      // this would cancel every booking — so it's opt-in).
-      if (env.ENABLE_AUTOCANCEL === 'true' && b.status === 'booked' && mins !== null && mins <= -15) {
+      // No-show auto-cancel: 30+ min past the slot and still merely 'booked'
+      // (the restaurant never marked the guest as arrived via the admin
+      // check-in panel — see checkInReservation()/adminMarkArrived()).
+      if (b.status === 'booked' && mins !== null && mins <= -30) {
         try {
           await deleteSlot(token, b);
           await sendEmailResend(env, cancelEmail(b), `Your Dinery reservation at ${b.restaurant} was cancelled`, b.email);
           await appendInAppNotif(token, uid, 'cancelled', 'Booking Cancelled', `${b.restaurant} · ${b.date} at ${b.time}`, null);
           summary.cancelled++; changed = true;
+          // The booking (and its timestamps) is about to disappear from this
+          // user's list entirely — for a guest, stamp lastActive now so the
+          // 24h idle-cleanup window starts counting from this cancellation
+          // rather than reverting to whatever stale timestamp (if any) came
+          // before the booking existed.
+          if (!(user.email || '').trim()) {
+            try { await touchLastActive(token, uid, now); }
+            catch (e) { summary.errors.push('touchLastActive:' + e.message); }
+          }
           // drop it from the list (mirrors a normal cancellation)
           continue;
         } catch (e) { summary.errors.push('cancel:' + e.message); kept.push(b); continue; }
@@ -229,6 +240,20 @@ async function patchReservations(token, uid, reservations) {
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error('patch ' + res.status + ' ' + (await res.text()));
+}
+
+// Stamp a guest's lastActive (used by isStaleGuest) — called when a booking is
+// removed from their list by the scheduler itself (no-show auto-cancel), so
+// the 24h idle-cleanup window starts counting from that moment.
+async function touchLastActive(token, uid, ts) {
+  const url = `${FS_BASE}/users/${uid}?updateMask.fieldPaths=lastActive`;
+  const body = { fields: { lastActive: toFs(ts) } };
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('touchLastActive ' + res.status + ' ' + (await res.text()));
 }
 
 // Prepend an in-app notification to the user's Firestore /users doc (max 30 kept).
@@ -439,7 +464,7 @@ function cancelEmail(b) {
   return shell('Reservation cancelled', `
   <tr><td style="background:#FDF8F0;padding:36px;text-align:center;">
     <h1 style="margin:0 0 12px 0;font-size:30px;color:#391212;text-transform:uppercase;">Reservation cancelled</h1>
-    <p style="margin:0;font-size:15px;color:#5a4a42;line-height:1.6;">Hi ${b.name || 'there'}, your reservation at <strong>${b.restaurant}</strong> on ${b.date} at ${b.time} was cancelled because the table wasn't checked in within 15 minutes of the reservation time.</p>
+    <p style="margin:0;font-size:15px;color:#5a4a42;line-height:1.6;">Hi ${b.name || 'there'}, your reservation at <strong>${b.restaurant}</strong> on ${b.date} at ${b.time} was cancelled because the table wasn't checked in within 30 minutes of the reservation time.</p>
   </td></tr>
   <tr><td style="background:#FAF4E8;padding:0 36px 36px;text-align:center;"><a href="${SITE}" style="display:inline-block;background:#391212;color:#FAF4E8;padding:16px 30px;border-radius:3px;text-decoration:none;font-size:13px;letter-spacing:2px;text-transform:uppercase;">Book Again</a></td></tr>`);
 }

@@ -145,6 +145,42 @@ window.restaurantStore = {
 };
 
 // ────────────────────────────────────────────────────────────────────────────
+//  USER STORE  (admin-only cross-user access — powers the check-in panel)
+//
+//  Firestore rules let an admin's own doc (admin == true) read AND write every
+//  /users/{uid} document, not just its own. `all()` lists every user (their
+//  reservations included) so the admin panel can build a "today's check-ins"
+//  view across all guests/accounts; `updateReservations()` lets it patch a
+//  single reservation's status (e.g. mark arrived) on someone else's doc.
+//  Both fail closed (return null / {ok:false}) for non-admins — the query
+//  itself is rejected by the rules before any data reaches the client.
+// ────────────────────────────────────────────────────────────────────────────
+window.userStore = {
+  // Returns an array of { uid, ...data } for every user doc, or null on error
+  // (e.g. the caller isn't an admin, so the rules reject the whole query).
+  async all() {
+    try {
+      const snap = await getDocs(collection(_db, 'users'));
+      return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+    } catch (e) {
+      console.warn('userStore.all failed:', e);
+      return null;
+    }
+  },
+
+  // Merge-write another user's reservations array (admin only). Returns { ok }.
+  async setReservations(uid, reservations) {
+    try {
+      await setDoc(doc(_db, 'users', uid), { reservations }, { merge: true });
+      return { ok: true };
+    } catch (e) {
+      console.error('userStore.setReservations failed:', e);
+      return { ok: false, error: e?.code || e?.message || String(e) };
+    }
+  },
+};
+
+// ────────────────────────────────────────────────────────────────────────────
 //  HALL CAPACITY STORE  (concurrency-safe seat booking)
 //
 //  Each hall+date+time slot is one Firestore document under /halls. A booking
