@@ -205,11 +205,8 @@ async function sendCancellationEmail(booking) {
   });
 }
 
-// Booking-confirmation email — mirrors the editorial design, all fields filled
-// and every button pointing somewhere real.
-// One template for both the "confirmed" and "updated" reservation emails.
-// variant: 'confirmed' (new booking) | 'modified' (after a change).
-function buildReservationEmailHTML(booking, restaurant, userName, variant) {
+// Booking-confirmation email (restyled editorial design) — sent for new bookings.
+function buildConfirmationEmailHTML(booking, restaurant, userName) {
   const restName = booking.restaurant || 'your restaurant';
   const date     = booking.date        || '—';
   const time     = booking.time        || '—';
@@ -224,51 +221,32 @@ function buildReservationEmailHTML(booking, restaurant, userName, variant) {
     ? booking.requests.trim()
     : 'No special requests were added to this reservation.';
 
-  const isMod    = variant === 'modified';
-  const title    = isMod ? 'Your Dinery Reservation Has Been Updated' : 'Your Dinery Reservation is Confirmed';
-  const preview  = isMod
-    ? `Your reservation at ${restName} has been updated. Here are your new details.`
-    : `Your table is booked. Here are your reservation details for ${restName}.`;
-  const headline = isMod ? 'Your reservation has been updated' : 'Your reservation is confirmed';
-  const subline  = isMod
-    ? `Thank you, ${name} — your reservation has been updated. Here are your new details.`
-    : `Thank you, ${name} — your evening is set. Here are your reservation details.`;
-
-  const SITE     = 'https://dinery.am';
-  // Deep-links that open the app straight into this booking's flow.
+  const SITE      = 'https://dinery.am';
   const manageUrl = (action) => `${SITE}/?r=${encodeURIComponent(ref)}&a=${action}`;
-  const mapsUrl  = 'https://maps.google.com/?q=' + encodeURIComponent(address);
-  const telHref  = 'tel:' + String(phone).replace(/[^\d+]/g, '');
+  const mapsUrl   = 'https://maps.google.com/?q=' + encodeURIComponent(address);
+  const telHref   = 'tel:' + String(phone).replace(/[^\d+]/g, '');
 
   return `<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${title}</title></head>
+<title>Your Dinery Reservation is Confirmed</title></head>
 <body style="margin:0; padding:0; background-color:#FAF4E8; font-family:Georgia, 'Times New Roman', serif;">
 <div style="display:none; font-size:1px; color:#FAF4E8; line-height:1px; max-height:0px; max-width:0px; opacity:0; overflow:hidden;">
-${preview}</div>
+Your table is booked. Here are your reservation details for ${restName}.</div>
 <center style="width:100%; background-color:#FAF4E8;">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px; margin:0 auto;" align="center">
 
-  <tr><td style="background-color:#391212; padding:28px 36px 18px 36px;">
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
-      <td align="left"><span style="font-family:Georgia, serif; font-size:22px; letter-spacing:2px; color:#FAF4E8; font-weight:bold;">DINERY</span></td>
-      <td align="right"><span style="font-family:Georgia, serif; font-size:11px; letter-spacing:3px; color:#FAF4E8; text-transform:uppercase;">Yerevan</span></td>
-    </tr></table>
-  </td></tr>
-  <tr><td style="background-color:#391212; padding:0 36px 24px 36px;">
-    <div style="border-top:1.5px solid #FAF4E8; line-height:1px; font-size:1px;">&nbsp;</div>
-  </td></tr>
+  ${rsMasthead()}
 
   <tr><td align="center" style="background-color:#FDF8F0; padding:40px 36px;">
-    <h1 style="margin:0 0 16px 0; font-family:Georgia, serif; font-size:34px; line-height:1.25; color:#391212; font-weight:bold; text-transform:uppercase; letter-spacing:1px;">${headline}</h1>
-    <p style="margin:0; font-size:15px; line-height:1.7; color:#5a4a42;">${subline}</p>
+    <h1 style="margin:0 0 16px 0; font-family:Georgia, serif; font-size:34px; line-height:1.25; color:#391212; font-weight:bold; text-transform:uppercase; letter-spacing:1px;">Your reservation is confirmed</h1>
+    <p style="margin:0; font-size:15px; line-height:1.7; color:#5a4a42; max-width:440px;">Thank you, ${name} — your evening is set. Here are your reservation details.</p>
   </td></tr>
 
   <tr><td style="background-color:#FFFFFF; padding:40px 36px;">
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
       <td width="48%" valign="top" style="padding-right:18px;">
-        <p style="margin:0 0 16px 0; font-size:11px; letter-spacing:3px; color:#391212; text-transform:uppercase; font-weight:bold;">Reservation Details</p>
+        <p style="margin:0 0 16px 0; font-size:11px; letter-spacing:3px; color:#B87040; text-transform:uppercase; font-weight:bold;">Reservation Details</p>
         <p style="margin:0 0 10px 0; font-size:14px; color:#391212;"><strong>Restaurant</strong><br><span style="color:#5a4a42;">${restName}</span></p>
         <p style="margin:0 0 10px 0; font-size:14px; color:#391212;"><strong>Date</strong><br><span style="color:#5a4a42;">${date}</span></p>
         <p style="margin:0 0 10px 0; font-size:14px; color:#391212;"><strong>Time</strong><br><span style="color:#5a4a42;">${time}</span></p>
@@ -277,7 +255,7 @@ ${preview}</div>
         <p style="margin:0; font-size:14px; color:#391212;"><strong>Reservation Code</strong><br><span style="color:#5a4a42;">${ref}</span></p>
       </td>
       <td width="52%" valign="top" style="padding:0;">
-        ${imgUrl ? `<img src="${imgUrl}" alt="${restName}" width="280" style="width:100%; height:280px; object-fit:cover; display:block; border-radius:3px;">` : ''}
+        ${imgUrl ? `<img src="${imgUrl}" alt="${restName}" width="100%" style="display:block; border-radius:10px; width:100%; height:260px; object-fit:cover;">` : ''}
       </td>
     </tr></table>
   </td></tr>
@@ -285,7 +263,7 @@ ${preview}</div>
   <tr><td style="background-color:#FFFFFF; padding:0 36px;"><div style="border-top:1.5px solid #391212; line-height:1px; font-size:1px;">&nbsp;</div></td></tr>
 
   <tr><td align="center" style="background-color:#FFFFFF; padding:40px 36px 10px 36px;">
-    <p style="margin:0 0 4px 0; font-family:Georgia, serif; font-size:11px; letter-spacing:3px; color:#391212; text-transform:uppercase; font-weight:bold;">Before You Go</p>
+    <p style="margin:0 0 4px 0; font-family:Georgia, serif; font-size:11px; letter-spacing:3px; color:#B87040; text-transform:uppercase; font-weight:bold;">Before You Go</p>
     <h2 style="margin:0; font-family:Georgia, serif; font-size:24px; color:#391212; font-weight:bold;">A few things to know</h2>
   </td></tr>
 
@@ -293,7 +271,7 @@ ${preview}</div>
     <p style="margin:0 0 6px 0; font-size:15px; color:#391212; font-weight:bold;">Address &amp; Phone</p>
     <p style="margin:0 0 4px 0; font-size:13px; color:#8a7a6f; line-height:1.6;">${address}</p>
     <p style="margin:0 0 16px 0; font-size:13px; color:#8a7a6f; line-height:1.6;">${phone}</p>
-    <a href="${mapsUrl}" target="_blank" style="display:inline-block; background-color:#391212; color:#FAF4E8; font-family:Georgia, serif; font-size:12px; letter-spacing:2px; font-weight:bold; text-decoration:none; padding:12px 28px; border-radius:3px; text-align:center; text-transform:uppercase;"><span style="font-size:15px; vertical-align:middle;">&#128205;</span>&nbsp; Get Directions</a>
+    <a href="${mapsUrl}" target="_blank" style="display:inline-block; background-color:#391212; color:#FAF4E8; font-family:Georgia, serif; font-size:12px; letter-spacing:2px; font-weight:bold; text-decoration:none; padding:12px 28px; border-radius:3px; text-align:center; text-transform:uppercase;">Get Directions</a>
   </td></tr>
 
   <tr><td style="background-color:#FFFFFF; padding:0 36px;"><div style="border-top:1.5px solid #391212; line-height:1px; font-size:1px;">&nbsp;</div></td></tr>
@@ -324,19 +302,19 @@ ${preview}</div>
   </td></tr>
 
   <tr><td style="background-color:#FAF4E8; padding:40px 36px 0 36px;">
-    <a href="${manageUrl('view')}" target="_blank" style="display:block; background-color:#391212; color:#FAF4E8; font-family:Georgia, serif; font-size:14px; letter-spacing:2px; font-weight:bold; text-decoration:none; padding:18px 0; border-radius:3px; text-align:center; text-transform:uppercase;"><span style="font-size:15px; vertical-align:middle;">&#128203;</span>&nbsp; View or Manage Reservation</a>
+    <a href="${manageUrl('view')}" target="_blank" style="display:block; background-color:#391212; color:#FAF4E8; font-family:Georgia, serif; font-size:14px; letter-spacing:2px; font-weight:bold; text-decoration:none; padding:18px 0; border-radius:3px; text-align:center; text-transform:uppercase;">View or Manage Reservation</a>
   </td></tr>
 
   <tr><td align="center" style="background-color:#FAF4E8; padding:40px 36px;">
     <p style="margin:0 0 16px 0; font-family:Georgia, serif; font-size:22px; letter-spacing:4px; color:#391212; font-weight:bold; text-transform:uppercase;">Reserve. Enjoy. Earn. Redeem.</p>
     <p style="margin:0 0 24px 0; font-size:14px; color:#5a4a42; line-height:1.6;">You'll earn points for this reservation — redeemable toward future perks.</p>
-    <a href="${SITE}/?r=${encodeURIComponent(ref)}&a=view" target="_blank" style="font-size:12px; letter-spacing:3px; color:#391212; text-decoration:underline; text-transform:uppercase; font-weight:bold;">&#127873;&nbsp; Learn More</a>
+    <a href="${manageUrl('view')}" target="_blank" style="display:inline-block; background-color:#B87040; color:#FAF4E8; font-family:Georgia, serif; font-size:12px; letter-spacing:3px; font-weight:bold; text-decoration:none; padding:14px 32px; border-radius:3px; text-align:center; text-transform:uppercase;">Learn More</a>
   </td></tr>
 
   <tr><td style="background-color:#FAF4E8; padding:0 36px;"><div style="border-top:1.5px solid #391212; line-height:1px; font-size:1px;">&nbsp;</div></td></tr>
 
   <tr><td align="left" style="background-color:#FAF4E8; padding:32px 36px;">
-    <p style="margin:0 0 14px 0; font-size:11px; letter-spacing:3px; color:#391212; text-transform:uppercase; font-weight:bold;">Important Things to Know</p>
+    <p style="margin:0 0 14px 0; font-size:11px; letter-spacing:3px; color:#B87040; text-transform:uppercase; font-weight:bold;">Important Things to Know</p>
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
       <tr><td valign="top" width="18" style="font-size:13px; color:#391212; line-height:1.6;">•</td><td valign="top" style="font-size:13px; color:#5a4a42; line-height:1.6; padding-bottom:10px;">Dinery's cancellation policy requires cancellations at least 3 hours before your reservation time.</td></tr>
       <tr><td valign="top" width="18" style="font-size:13px; color:#391212; line-height:1.6;">•</td><td valign="top" style="font-size:13px; color:#5a4a42; line-height:1.6; padding-bottom:10px;">Our restaurants offer a 15-minute grace period. Running late? A quick call to the restaurant lets them hold your table.</td></tr>
@@ -347,47 +325,26 @@ ${preview}</div>
   <tr><td style="background-color:#FAF4E8; padding:0 36px;"><div style="border-top:1.5px solid #391212; line-height:1px; font-size:1px;">&nbsp;</div></td></tr>
 
   <tr><td align="left" style="background-color:#FAF4E8; padding:32px 36px;">
-    <p style="margin:0 0 10px 0; font-size:11px; letter-spacing:3px; color:#391212; text-transform:uppercase; font-weight:bold;">Protect Your Data</p>
+    <p style="margin:0 0 10px 0; font-size:11px; letter-spacing:3px; color:#B87040; text-transform:uppercase; font-weight:bold;">Protect Your Data</p>
     <p style="margin:0; font-size:13px; color:#5a4a42; line-height:1.6;">Dinery will never contact you asking for your password, payment details, or other personal information. If you receive a message like this, please contact us immediately.</p>
   </td></tr>
 
   <tr><td align="center" style="background-color:#FAF4E8; padding:0 36px 40px 36px;">
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1.5px solid #391212; border-radius:6px;"><tr>
       <td align="center" style="padding:24px 22px;">
-        <p style="margin:0 0 6px 0; font-size:11px; letter-spacing:3px; color:#391212; text-transform:uppercase; font-weight:bold;">Need Help?</p>
+        <p style="margin:0 0 6px 0; font-size:11px; letter-spacing:3px; color:#B87040; text-transform:uppercase; font-weight:bold;">Need Help?</p>
         <p style="margin:0 0 4px 0; font-size:14px; color:#5a4a42; line-height:1.6;">Contact the restaurant directly at <a href="${telHref}" style="color:#391212; text-decoration:underline;">${phone}</a></p>
         <p style="margin:0; font-size:14px; color:#5a4a42; line-height:1.6;">Or reach Dinery support at <a href="mailto:info@dinery.am" style="color:#391212; text-decoration:underline;">info@dinery.am</a></p>
       </td>
     </tr></table>
   </td></tr>
 
-  <tr><td style="background-color:#FDF8F0; padding:32px 36px;">
-    <div style="border-top:1.5px solid #391212; line-height:1px; font-size:1px; margin-bottom:24px;">&nbsp;</div>
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
-      <td align="left" valign="middle">
-        <p style="margin:0 0 4px 0; font-size:11px; color:#8a7a6f; letter-spacing:1px;">© 2026 DINERY</p>
-        <p style="margin:0; font-size:11px; color:#8a7a6f; letter-spacing:1px;">YEREVAN, ARMENIA</p>
-      </td>
-      <td align="right" valign="middle">
-        <a href="https://instagram.com/dinery" target="_blank" style="font-size:11px; letter-spacing:2px; color:#391212; text-decoration:none; text-transform:uppercase; font-weight:bold;">Instagram</a>
-        <span style="color:#8a7a6f;">&nbsp;·&nbsp;</span>
-        <a href="https://facebook.com/dinery" target="_blank" style="font-size:11px; letter-spacing:2px; color:#391212; text-decoration:none; text-transform:uppercase; font-weight:bold;">Facebook</a>
-        <span style="color:#8a7a6f;">&nbsp;·&nbsp;</span>
-        <a href="https://tiktok.com/@dinery" target="_blank" style="font-size:11px; letter-spacing:2px; color:#391212; text-decoration:none; text-transform:uppercase; font-weight:bold;">TikTok</a>
-      </td>
-    </tr></table>
-    <p style="margin:24px 0 0 0; font-size:10px; color:#a89a8e; letter-spacing:1px;">
-      <a href="${SITE}" style="color:#a89a8e; text-decoration:underline;">Privacy Policy</a> &nbsp;|&nbsp;
-      <a href="${SITE}" style="color:#a89a8e; text-decoration:underline;">Terms of Service</a>
-    </p>
-  </td></tr>
+  ${rsFooter()}
 
 </table>
 </center>
 </body></html>`;
 }
-
-const buildConfirmationEmailHTML = (b, r, n) => buildReservationEmailHTML(b, r, n, 'confirmed');
 
 // ── Modified-reservation email (restyled editorial design) ────────────────────
 // Its own template: hero photo up top, "New Details", and — when the previous
