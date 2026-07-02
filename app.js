@@ -266,6 +266,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const doc = await db.collection('users').doc(firebaseUser.uid).get();
         if (doc.exists) state.reservations = doc.data().reservations || [];
       } catch(e) { /* ignore */ }
+      // Stamp lastActive so the scheduler can find + clean up idle guest
+      // accounts (24h of inactivity) even if they never book or save anything —
+      // without this, an untouched guest doc never exists in Firestore at all.
+      db.collection('users').doc(firebaseUser.uid).set(
+        { lastActive: Date.now() }, { merge: true }
+      ).catch(() => { /* best-effort */ });
       renderHome();
       renderProfile();
       if (state.currentScreen === 'reservations') renderReservations();

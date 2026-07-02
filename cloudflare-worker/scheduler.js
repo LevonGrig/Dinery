@@ -8,10 +8,12 @@
 //    • emails a review request ~60 min after check-in (status 'checkedIn')
 //
 //  It also runs a guest-cleanup pass: a guest (anonymous account — a user doc
-//  with no email) is deleted from BOTH Firestore and Firebase Auth once all of
-//  their reservations have ended and a grace period (GUEST_TTL_HOURS, default
-//  24h) has passed with no new/upcoming booking. This keeps unused anonymous
-//  accounts from piling up. Gated by ENABLE_GUEST_CLEANUP === 'true'.
+//  with no email) is deleted from BOTH Firestore and Firebase Auth once they
+//  haven't opened the app in GUEST_TTL_HOURS (default 24h), tracked via a
+//  `lastActive` timestamp stamped on every anonymous session (app.js). A guest
+//  with a reservation still ahead of them is never deleted regardless of how
+//  long it's been, so reminder/review emails keep firing. This keeps unused
+//  anonymous accounts from piling up. Gated by ENABLE_GUEST_CLEANUP === 'true'.
 //
 //  Secrets (Cloudflare → Worker → Settings → Variables):
 //    GOOGLE_SERVICE_ACCOUNT  (secret)  the full service-account JSON (one line)
@@ -155,27 +157,38 @@ function slotEpoch(b) {
 }
 
 // A guest is an anonymous account: its /users doc has no email (real accounts
-// always store one at sign-up). It's "stale" once every reservation has ended
-// and GUEST_TTL_HOURS have passed since the latest one — and there's nothing
-// upcoming. We never touch docs that carry an email (real accounts).
+// always store one at sign-up). It's "stale" — and gets deleted — once
+// GUEST_TTL_HOURS (default 24) have passed since the guest last opened the app
+// (`lastActive`, stamped on every anonymous session in app.js), with two
+// safeguards: never delete a guest with a reservation still ahead of them
+// (reminders/emails still need to fire), and never delete a doc we have no
+// trustworthy timestamp for at all. We never touch docs that carry an email
+// (real accounts).
 function isStaleGuest(user, list, now, env) {
   if ((user.email || '').trim()) return false;          // real account — keep
   const ttlMs = (Number(env.GUEST_TTL_HOURS) || 24) * 3600 * 1000;
 
-  // Newest known moment across reservations (prefer the slot time; fall back to
-  // when the booking was created so we never delete a brand-new guest).
-  let latest = 0;
+  // Never delete a guest with an upcoming reservation, even if they haven't
+  // reopened the app since booking.
+  for (const b of list) {
+    const slot = slotEpoch(b);
+    if (slot && slot > now) return false;
+  }
+
+  // Primary signal: time since the guest last opened the app. Fall back to the
+  // newest reservation/booking timestamp for older docs written before
+  // lastActive existed, so we don't wrongly nuke a guest we can't reason about.
+  let latest = Number(user.lastActive) || 0;
   for (const b of list) {
     const slot = slotEpoch(b);
     if (slot && slot > latest) latest = slot;
     if (b.ts  && b.ts  > latest) latest = b.ts;
   }
 
-  // An empty guest doc with no reservations carries no timestamp we can trust,
-  // so leave it alone rather than risk deleting one mid-booking.
+  // No trustworthy timestamp at all — leave it alone rather than risk deleting
+  // a guest mid-session.
   if (!latest) return false;
 
-  // Keep until the grace period after the most recent reservation/booking.
   return (now - latest) >= ttlMs;
 }
 
