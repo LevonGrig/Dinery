@@ -125,10 +125,14 @@ async function runScheduler(env) {
       if (b.status === 'booked' && mins !== null) {
         if (!b.remind60Sent && mins <= 60 && mins > 30) {
           await pushAll(env, subs, reminderPayload(b, 60));
+          try { await sendEmailResend(env, reminderEmail(b, 60), `Your table at ${b.restaurant} is in 1 hour`, b.email); }
+          catch (e) { summary.errors.push('remind60email:' + e.message); }
           await appendInAppNotif(token, uid, 'reminder', 'Upcoming Reservation', `${b.restaurant} in 60 minutes`, b.ref);
           b.remind60Sent = true; changed = true; summary.remind60++;
         } else if (!b.remind30Sent && mins <= 30 && mins > 0) {
           await pushAll(env, subs, reminderPayload(b, 30));
+          try { await sendEmailResend(env, reminderEmail(b, 30), `Your table at ${b.restaurant} is in 30 minutes`, b.email); }
+          catch (e) { summary.errors.push('remind30email:' + e.message); }
           await appendInAppNotif(token, uid, 'reminder', 'Upcoming Reservation', `${b.restaurant} in 30 minutes`, b.ref);
           b.remind30Sent = true; changed = true; summary.remind30++;
         }
@@ -425,6 +429,110 @@ function cancelEmail(b) {
     <p style="margin:0;font-size:15px;color:#5a4a42;line-height:1.6;">Hi ${b.name || 'there'}, your reservation at <strong>${b.restaurant}</strong> on ${b.date} at ${b.time} was cancelled because the table wasn't checked in within 15 minutes of the reservation time.</p>
   </td></tr>
   <tr><td style="background:#FAF4E8;padding:0 36px 36px;text-align:center;"><a href="${SITE}" style="display:inline-block;background:#391212;color:#FAF4E8;padding:16px 30px;border-radius:3px;text-decoration:none;font-size:13px;letter-spacing:2px;text-transform:uppercase;">Book Again</a></td></tr>`);
+}
+
+// Editorial reservation reminder, sent ~60 and ~30 minutes before the slot.
+function reminderEmail(b, mins) {
+  const restName = b.restaurant || 'your restaurant';
+  const date     = b.date       || '—';
+  const time     = b.time       || '—';
+  const guests   = b.guests     || '—';
+  const ref      = b.ref        || '—';
+  const address  = b.address    || 'Yerevan, Armenia';
+  const tableType = b.seating   || '—';
+  const imgUrl   = b.img || '';
+  const mapsUrl  = 'https://maps.google.com/?q=' + encodeURIComponent(address);
+  const cancelUrl = `${SITE}/?r=${encodeURIComponent(ref)}&a=cancel`;
+  const whenText = mins >= 60 ? `${Math.round(mins / 60)} hour${Math.round(mins / 60) === 1 ? '' : 's'}` : `${mins} minutes`;
+
+  return `<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your Table Is Ready in ${whenText}</title></head>
+<body style="margin:0;padding:0;background-color:#FAF4E8;font-family:Georgia,'Times New Roman',serif;">
+<div style="display:none;font-size:1px;color:#FAF4E8;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">Your reservation at ${restName} is in ${whenText} — your table for ${guests} is confirmed and waiting.</div>
+<center style="width:100%;background-color:#FAF4E8;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px;margin:0 auto;" align="center">
+
+  <tr><td style="background-color:#B87040;padding:28px 36px 0 36px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+      <td align="left" valign="middle"><span style="font-family:Georgia,serif;font-size:26px;letter-spacing:3px;color:#FAF4E8;font-weight:bold;">DINERY</span></td>
+      <td align="right" valign="middle"><span style="font-family:Georgia,serif;font-size:11px;letter-spacing:2px;color:#FAF4E8;text-transform:uppercase;">Yerevan, Armenia</span></td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="background-color:#B87040;padding:18px 36px 26px 36px;">
+    <div style="border-top:1px solid rgba(250,244,232,0.4);line-height:1px;font-size:1px;">&nbsp;</div>
+  </td></tr>
+
+  ${imgUrl ? `<tr><td style="background-color:#FAF4E8;padding:24px 0;line-height:1px;font-size:1px;">&nbsp;</td></tr>
+  <tr><td style="padding:0;margin:0;line-height:0;font-size:0;">
+    <img src="${imgUrl}" alt="${restName}" width="600" style="display:block;width:100%;max-width:600px;height:240px;object-fit:cover;">
+  </td></tr>` : `<tr><td style="background-color:#FAF4E8;padding:24px 0;line-height:1px;font-size:1px;">&nbsp;</td></tr>`}
+
+  <tr><td align="center" style="background-color:#FDF8F0;padding:40px 36px 28px 36px;">
+    <p style="margin:0 0 6px 0;font-size:11px;letter-spacing:3px;color:#B87040;text-transform:uppercase;font-weight:bold;">Reminder</p>
+    <h1 style="margin:0 0 6px 0;font-family:Georgia,serif;font-size:26px;line-height:1.3;color:#391212;font-weight:bold;letter-spacing:0.5px;">Your reservation is coming up in ${whenText} at <span style="text-decoration:underline;text-decoration-color:#B87040;">${restName}</span></h1>
+    <p style="margin:0;font-size:13px;line-height:1.75;color:#8a7a6f;max-width:420px;margin-left:auto;margin-right:auto;">Your table is confirmed and waiting. We'll see you soon.</p>
+  </td></tr>
+
+  <tr><td style="background-color:#FDF8F0;padding:0 36px;"><div style="border-top:1.5px solid #391212;line-height:1px;font-size:1px;">&nbsp;</div></td></tr>
+
+  <tr><td style="background-color:#FDF8F0;padding:32px 36px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+      <tr><td style="padding:0 0 20px 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+          <td width="50%" style="padding-right:8px;"><p style="margin:0 0 4px 0;font-size:10px;letter-spacing:2.5px;color:#B87040;text-transform:uppercase;font-weight:bold;">Date</p><p style="margin:0;font-size:15px;color:#391212;font-weight:bold;">${date}</p></td>
+          <td width="50%" style="padding-left:8px;border-left:1.5px solid #391212;"><p style="margin:0 0 4px 0;font-size:10px;letter-spacing:2.5px;color:#B87040;text-transform:uppercase;font-weight:bold;">Time</p><p style="margin:0;font-size:15px;color:#391212;font-weight:bold;">${time}</p></td>
+        </tr></table>
+      </td></tr>
+      <tr><td style="padding:0 0 20px 0;"><div style="border-top:1px solid rgba(57,18,18,0.2);line-height:1px;font-size:1px;">&nbsp;</div></td></tr>
+      <tr><td style="padding:0 0 20px 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+          <td width="50%" style="padding-right:8px;"><p style="margin:0 0 4px 0;font-size:10px;letter-spacing:2.5px;color:#B87040;text-transform:uppercase;font-weight:bold;">Guests</p><p style="margin:0;font-size:15px;color:#391212;font-weight:bold;">${guests}</p></td>
+          <td width="50%" style="padding-left:8px;border-left:1.5px solid #391212;"><p style="margin:0 0 4px 0;font-size:10px;letter-spacing:2.5px;color:#B87040;text-transform:uppercase;font-weight:bold;">Table Type</p><p style="margin:0;font-size:15px;color:#391212;font-weight:bold;">${tableType}</p></td>
+        </tr></table>
+      </td></tr>
+      <tr><td style="padding:0 0 20px 0;"><div style="border-top:1px solid rgba(57,18,18,0.2);line-height:1px;font-size:1px;">&nbsp;</div></td></tr>
+      <tr><td>
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+          <td width="50%" style="padding-right:8px;"><p style="margin:0 0 4px 0;font-size:10px;letter-spacing:2.5px;color:#B87040;text-transform:uppercase;font-weight:bold;">Booking Ref</p><p style="margin:0;font-size:15px;color:#391212;font-weight:bold;">${ref}</p></td>
+          <td width="50%" style="padding-left:8px;border-left:1.5px solid #391212;"><p style="margin:0 0 4px 0;font-size:10px;letter-spacing:2.5px;color:#B87040;text-transform:uppercase;font-weight:bold;">Address</p><p style="margin:0;font-size:14px;color:#391212;">${address}</p></td>
+        </tr></table>
+      </td></tr>
+    </table>
+  </td></tr>
+
+  <tr><td align="center" style="background-color:#FDF8F0;padding:0 36px 40px 36px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td align="center" style="background-color:#391212;border-radius:50px;padding:16px 40px;">
+        <a href="${mapsUrl}" target="_blank" style="font-family:Georgia,serif;font-size:14px;letter-spacing:1.5px;color:#FAF4E8;text-decoration:none;text-transform:uppercase;font-weight:bold;display:inline-block;">Get Directions</a>
+      </td>
+    </tr></table>
+  </td></tr>
+
+  <tr><td style="background-color:#FAF4E8;padding:0 36px;"><div style="border-top:1.5px solid #391212;line-height:1px;font-size:1px;">&nbsp;</div></td></tr>
+
+  <tr><td align="center" style="background-color:#FAF4E8;padding:36px 36px 28px 36px;">
+    <p style="margin:0 0 6px 0;font-size:11px;letter-spacing:3px;color:#391212;text-transform:uppercase;font-weight:bold;">Plans Changed?</p>
+    <p style="margin:0;font-size:14px;line-height:1.75;color:#5a4a42;max-width:440px;margin-left:auto;margin-right:auto;">If you can no longer make it, please cancel your reservation as soon as possible so the table can be offered to another guest.</p>
+    <p style="margin:12px 0 0 0;"><a href="${cancelUrl}" style="font-family:Georgia,serif;font-size:13px;letter-spacing:1px;color:#391212;text-decoration:underline;text-transform:uppercase;">Cancel Reservation</a></p>
+  </td></tr>
+
+  <tr><td style="background-color:#FAF4E8;padding:0 36px;"><div style="border-top:1.5px solid #391212;line-height:1px;font-size:1px;">&nbsp;</div></td></tr>
+
+  <tr><td align="center" style="background-color:#FAF4E8;padding:36px 36px 28px 36px;">
+    <p style="margin:0 0 6px 0;font-size:11px;letter-spacing:3px;color:#391212;text-transform:uppercase;font-weight:bold;">Your Pre-Order</p>
+    <p style="margin:0;font-size:14px;line-height:1.75;color:#5a4a42;max-width:440px;margin-left:auto;margin-right:auto;">If you've pre-ordered items for this visit, the kitchen has been notified and your selections will be ready when you arrive. Check your booking confirmation email for the full list.</p>
+  </td></tr>
+
+  <tr><td style="background-color:#391212;padding:28px 36px;">
+    <p style="margin:0 0 4px 0;font-size:11px;color:#FAF4E8;letter-spacing:1px;">© 2026 DINERY</p>
+    <p style="margin:0;font-size:11px;color:#FAF4E8;letter-spacing:1px;">YEREVAN, ARMENIA</p>
+  </td></tr>
+
+</table>
+</center>
+</body></html>`;
 }
 
 // Restyled editorial review request — kept in sync with buildReviewEmailHTML in

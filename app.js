@@ -1504,7 +1504,7 @@ async function confirmBooking() {
 
   const seatingText = `${hallLabel(hall)} · Table ${assignedTable.label}`;
   const booking = {
-    ref, restaurant:r.name, img:r.img, date:dateStr,
+    ref, restaurant:r.name, img:r.img, address:r.address, date:dateStr,
     time:state.selectedTime, seating:seatingText,
     guests:seats, name, phone, requests, ts:Date.now(),
     // booking bookkeeping — lets us release the table on cancel/change
